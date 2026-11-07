@@ -3,13 +3,13 @@
 A small, mobile-first web UI for one job: search [Prowlarr](https://prowlarr.com), grab what you pick to
 qBittorrent, and watch it download.
 
-- **Search** the default indexers, or others for one search. Results load as you scroll (no page numbers, nothing to
-  lose by going back). Each result links to its page on the indexer.
+- **Search** the default indexers and categories, or others for one search. Results load as you scroll (no page
+  numbers, nothing to lose by going back). Each result links to its page on the indexer.
 - **Grab** one or many results at once. They go to the default download client, with the default category.
 - **Downloads** shows every torrent of that category live: status, progress, speed, ETA. Torrents can be deleted from
   here, files included.
-- **Settings**: the download client (any qBittorrent client configured in Prowlarr), the category and the default
-  indexers. Stored in SQLite, shared by everyone using the instance.
+- **Settings**: the download client (any qBittorrent client configured in Prowlarr), the category, and the default
+  indexers and search categories. Stored in SQLite, shared by everyone using the instance.
 
 There's no authentication: run it behind a reverse proxy that does it.
 
@@ -152,12 +152,16 @@ in [`src/api.rs`](src/api.rs), from which the TypeScript types in `web/src/api/g
 | `settings.update` | `Settings` | `Settings` |
 | `indexers.list` | | `Indexer[]` (torrent indexers) |
 | `downloadClients.list` | | `DownloadClient[]` (qBittorrent clients) |
-| `categories.list` | `{downloadClientId}` | `string[]` |
-| `search` | `{query, indexerIds?, offset?, limit?}` | `{releases, nextOffset}` |
+| `downloadCategories.list` | `{downloadClientId}` | `string[]` (qBittorrent categories) |
+| `searchCategories.list` | | `SearchCategory[]` (Prowlarr's, with subcategories) |
+| `search` | `{query, indexerIds?, categories?, offset?, limit?}` | `{releases, nextOffset}` |
 | `grab` | `{guid}` | `null` |
 | `torrents.subscribe` | | `null`, then `TorrentsEvent`s |
 | `torrents.remove` | `{hashes}` | `null` (only torrents of the category; files are deleted) |
 | `unsubscribe` | `{id}` | `null` |
+
+`indexerIds` and `categories` left out mean the defaults from the settings; an empty list means all of them. A parent
+category (`2000`, Movies) includes its subcategories (`2040`, Movies/HD).
 
 Grabs name a release by the `guid` of a recent search, and the server downloads it through the link Prowlarr gave:
 clients can't make the server fetch arbitrary URLs.

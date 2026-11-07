@@ -19,8 +19,10 @@ import {
   useDownloadClients,
   useIndexers,
   useSaveSettings,
+  useSearchCategories,
   useSettings,
 } from '../api/hooks'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { ActionBar } from '../components/ui'
 import classes from './Settings.module.css'
 
@@ -49,7 +51,9 @@ function same(a: Settings, b: Settings): boolean {
     a.downloadClientId === b.downloadClientId &&
     (a.category ?? '') === (b.category ?? '') &&
     a.indexerIds.length === b.indexerIds.length &&
-    a.indexerIds.every((id, i) => id === b.indexerIds[i])
+    a.indexerIds.every((id, i) => id === b.indexerIds[i]) &&
+    a.searchCategories.length === b.searchCategories.length &&
+    a.searchCategories.every((id, i) => id === b.searchCategories[i])
   )
 }
 
@@ -58,6 +62,7 @@ function SettingsForm({ saved }: { saved: Settings }) {
 
   const clients = useDownloadClients()
   const indexers = useIndexers()
+  const searchCategories = useSearchCategories()
   const categories = useCategories(draft.downloadClientId)
   const save = useSaveSettings()
   const dirty = !same(draft, saved)
@@ -176,6 +181,28 @@ function SettingsForm({ saved }: { saved: Settings }) {
               ))}
             </div>
           </Checkbox.Group>
+        )}
+      </Section>
+
+      <Section
+        title="Default categories"
+        description="Searched unless a search picks others. A whole category includes its subcategories; none searches every category."
+      >
+        {searchCategories.isError ? (
+          <Text size="sm" c="red">
+            {searchCategories.error.message}
+          </Text>
+        ) : searchCategories.isPending ? (
+          <Loader size="xs" color="signal" />
+        ) : (
+          <CategoryPicker
+            tree={searchCategories.data}
+            value={draft.searchCategories}
+            onChange={(ids) => {
+              setDraft((d) => ({ ...d, searchCategories: ids }))
+            }}
+            label="Default categories"
+          />
         )}
       </Section>
 

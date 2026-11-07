@@ -4,7 +4,7 @@ import type { Settings } from "./model";
 /**
  * Every method the server implements, with its parameters.
  */
-export type Call = { "method": "settings.get" } | { "method": "settings.update", "params": Settings } | { "method": "indexers.list" } | { "method": "downloadClients.list" } | { "method": "categories.list", "params": CategoriesParams } | { "method": "search", "params": SearchParams } | { "method": "grab", "params": GrabParams } | { "method": "torrents.subscribe" } | { "method": "torrents.remove", "params": RemoveParams } | { "method": "unsubscribe", "params": UnsubscribeParams };
+export type Call = { "method": "settings.get" } | { "method": "settings.update", "params": Settings } | { "method": "indexers.list" } | { "method": "downloadClients.list" } | { "method": "downloadCategories.list", "params": CategoriesParams } | { "method": "searchCategories.list" } | { "method": "search", "params": SearchParams } | { "method": "grab", "params": GrabParams } | { "method": "torrents.subscribe" } | { "method": "torrents.remove", "params": RemoveParams } | { "method": "unsubscribe", "params": UnsubscribeParams };
 
 export type CategoriesParams = { downloadClientId: number, };
 
@@ -21,7 +21,7 @@ export type RemoveParams = { hashes: Array<string>, };
 /**
  * One call from the client: a method and its parameters.
  */
-export type Request = { id: string, } & ({ "method": "settings.get" } | { "method": "settings.update", "params": Settings } | { "method": "indexers.list" } | { "method": "downloadClients.list" } | { "method": "categories.list", "params": CategoriesParams } | { "method": "search", "params": SearchParams } | { "method": "grab", "params": GrabParams } | { "method": "torrents.subscribe" } | { "method": "torrents.remove", "params": RemoveParams } | { "method": "unsubscribe", "params": UnsubscribeParams });
+export type Request = { id: string, } & ({ "method": "settings.get" } | { "method": "settings.update", "params": Settings } | { "method": "indexers.list" } | { "method": "downloadClients.list" } | { "method": "downloadCategories.list", "params": CategoriesParams } | { "method": "searchCategories.list" } | { "method": "search", "params": SearchParams } | { "method": "grab", "params": GrabParams } | { "method": "torrents.subscribe" } | { "method": "torrents.remove", "params": RemoveParams } | { "method": "unsubscribe", "params": UnsubscribeParams });
 
 export type RpcError = { code: ErrorCode, message: string, };
 
@@ -29,7 +29,11 @@ export type SearchParams = { query: string,
 /**
  * Indexers to search instead of the default ones.
  */
-indexerIds?: Array<number>, offset?: number, limit?: number, };
+indexerIds?: Array<number>, 
+/**
+ * Prowlarr categories to search instead of the default ones; a parent category includes its subcategories.
+ */
+categories?: Array<number>, offset?: number, limit?: number, };
 
 /**
  * A message from the server.

@@ -55,10 +55,16 @@ impl Db {
             sqlx::query_scalar!("SELECT indexer_id FROM default_indexers ORDER BY indexer_id")
                 .fetch_all(&self.pool)
                 .await?;
+        let search_categories = sqlx::query_scalar!(
+            "SELECT category_id FROM default_search_categories ORDER BY category_id"
+        )
+        .fetch_all(&self.pool)
+        .await?;
         Ok(Settings {
             download_client_id: row.download_client_id,
             category: row.category,
             indexer_ids,
+            search_categories,
         })
     }
 
@@ -82,6 +88,17 @@ impl Db {
             .execute(&mut *tx)
             .await?;
         }
+        sqlx::query!("DELETE FROM default_search_categories")
+            .execute(&mut *tx)
+            .await?;
+        for id in &settings.search_categories {
+            sqlx::query!(
+                "INSERT OR IGNORE INTO default_search_categories (category_id) VALUES (?)",
+                id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
         tx.commit().await
     }
 }
@@ -99,6 +116,7 @@ mod tests {
             download_client_id: Some(3),
             category: Some("linux".into()),
             indexer_ids: vec![1, 5],
+            search_categories: vec![2000, 5040],
         };
         db.save_settings(&settings).await.unwrap();
         assert_eq!(db.settings().await.unwrap(), settings);

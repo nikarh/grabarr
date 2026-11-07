@@ -6,6 +6,7 @@
 import type {
   DownloadClient,
   Indexer,
+  SearchCategory,
   SearchPage,
   Settings,
   TorrentsEvent,
@@ -23,7 +24,8 @@ interface Results {
   'settings.update': Settings
   'indexers.list': Indexer[]
   'downloadClients.list': DownloadClient[]
-  'categories.list': string[]
+  'downloadCategories.list': string[]
+  'searchCategories.list': SearchCategory[]
   search: SearchPage
   grab: null
   'torrents.subscribe': null

@@ -107,6 +107,8 @@ impl App {
             .filter(|c| !c.is_empty());
         settings.indexer_ids.sort_unstable();
         settings.indexer_ids.dedup();
+        settings.search_categories.sort_unstable();
+        settings.search_categories.dedup();
         let old = self.db.settings().await?;
         self.db.save_settings(&settings).await?;
         if old.download_client_id != settings.download_client_id {
@@ -122,6 +124,10 @@ impl App {
 
     pub async fn indexers(&self) -> Result<Vec<api::Indexer>, Error> {
         Ok(self.prowlarr.indexers().await?)
+    }
+
+    pub async fn search_categories(&self) -> Result<Vec<api::SearchCategory>, Error> {
+        Ok(self.prowlarr.search_categories().await?)
     }
 
     pub async fn download_clients(&self) -> Result<Vec<api::DownloadClient>, Error> {
@@ -181,15 +187,21 @@ impl App {
         if query.is_empty() {
             return Err(Error::new(ErrorCode::BadRequest, "the query is empty"));
         }
-        let indexer_ids = match params.indexer_ids {
-            Some(ids) => ids,
-            None => self.db.settings().await?.indexer_ids,
+        let (indexer_ids, categories) = match (params.indexer_ids, params.categories) {
+            (Some(ids), Some(categories)) => (ids, categories),
+            (ids, categories) => {
+                let settings = self.db.settings().await?;
+                (
+                    ids.unwrap_or(settings.indexer_ids),
+                    categories.unwrap_or(settings.search_categories),
+                )
+            }
         };
         let offset = params.offset.unwrap_or(0);
         let limit = params.limit.unwrap_or(DEFAULT_PAGE).clamp(1, MAX_PAGE);
         let releases = self
             .prowlarr
-            .search(query, &indexer_ids, offset, limit)
+            .search(query, &indexer_ids, &categories, offset, limit)
             .await?;
         let next_offset = next_offset(offset, &releases);
         let releases: Vec<_> = releases

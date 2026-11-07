@@ -17,20 +17,23 @@ import {
   IconAlertTriangle,
   IconArrowDown,
   IconArrowUp,
+  IconCategory,
   IconCheck,
   IconExternalLink,
-  IconFilter,
+  IconServer,
   IconSearch,
   IconX,
 } from '@tabler/icons-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { memo, useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
 
-import type { Indexer, Release } from '../api/generated/model'
-import { useIndexers, useSearch, useSettings } from '../api/hooks'
+import type { Indexer, Release, SearchCategory } from '../api/generated/model'
+import { useIndexers, useSearch, useSearchCategories, useSettings } from '../api/hooks'
 import { rpc, RpcError } from '../api/rpc'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { ActionBar, EmptyState, Sheet } from '../components/ui'
 import ui from '../components/ui.module.css'
+import { describeCategories } from '../lib/categories'
 import { cx } from '../lib/cx'
 import { formatAge, formatBytes } from '../lib/format'
 import { href, navigate } from '../lib/router'
@@ -41,15 +44,17 @@ type GrabState = { status: 'pending' } | { status: 'done' } | { status: 'failed'
 
 export function SearchScreen({ query }: { query: string }) {
   const [input, setInput] = useState(query)
-  // undefined: the default indexers from the settings.
+  // undefined: the defaults from the settings.
   const [indexerIds, setIndexerIds] = useState<number[] | undefined>(undefined)
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [categories, setCategories] = useState<number[] | undefined>(undefined)
+  const [picker, setPicker] = useState<'indexers' | 'categories' | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [grabs, setGrabs] = useState<ReadonlyMap<string, GrabState>>(new Map())
 
   const settings = useSettings()
   const indexers = useIndexers()
-  const search = useSearch(query, indexerIds)
+  const categoryTree = useSearchCategories()
+  const search = useSearch(query, { indexerIds, categories })
 
   // A new search (typed here, or from history) resets the input and the selection.
   const [shownQuery, setShownQuery] = useState(query)
@@ -130,7 +135,14 @@ export function SearchScreen({ query }: { query: string }) {
     })
   }
 
-  const indexerLabel = describeIndexers(indexerIds, settings.data?.indexerIds, indexers.data)
+  const indexerLabel = describeIndexers(indexerIds ?? settings.data?.indexerIds, indexers.data)
+  const categoryLabel = describeCategories(
+    categories ?? settings.data?.searchCategories ?? [],
+    categoryTree.data ?? [],
+  )
+  const closePicker = () => {
+    setPicker(null)
+  }
 
   return (
     <Stack gap="md">
@@ -168,23 +180,36 @@ export function SearchScreen({ query }: { query: string }) {
         </Button>
       </form>
 
-      <Group gap="xs" justify="space-between" wrap="nowrap">
+      <div className={classes.scopes}>
         <UnstyledButton
           className={classes.scope}
           onClick={() => {
-            setPickerOpen(true)
+            setPicker('indexers')
           }}
           data-custom={indexerIds !== undefined}
+          aria-label={`Indexers: ${indexerLabel}`}
         >
-          <IconFilter size={14} stroke={2} />
-          <span className={classes.scopeLabel}>{indexerLabel}</span>
+          <IconServer size={14} stroke={2} />
+          <span className={classes.scopeLabel}>{capitalize(indexerLabel)}</span>
         </UnstyledButton>
-        {releases.length > 0 && (
-          <Text size="xs" c="dimmed" className="mono">
-            {releases.length} {search.hasNextPage ? 'loaded' : 'results'}
-          </Text>
-        )}
-      </Group>
+        <UnstyledButton
+          className={classes.scope}
+          onClick={() => {
+            setPicker('categories')
+          }}
+          data-custom={categories !== undefined}
+          aria-label={`Categories: ${categoryLabel}`}
+        >
+          <IconCategory size={14} stroke={2} />
+          <span className={classes.scopeLabel}>{capitalize(categoryLabel)}</span>
+        </UnstyledButton>
+      </div>
+
+      {releases.length > 0 && (
+        <Text size="xs" c="dimmed" className="mono">
+          {releases.length} {search.hasNextPage ? 'loaded' : 'results'}
+        </Text>
+      )}
 
       {settings.isSuccess && !configured && (
         <Alert
@@ -204,7 +229,7 @@ export function SearchScreen({ query }: { query: string }) {
       {query === '' ? (
         <EmptyState icon={<IconSearch size={24} stroke={1.6} />} title="Find something to grab">
           <Text size="sm" maw={320}>
-            Searches {indexerLabel.toLowerCase()} through Prowlarr. Results load as you scroll.
+            Searches {indexerLabel} in {categoryLabel} through Prowlarr. Results load as you scroll.
           </Text>
         </EmptyState>
       ) : search.isPending ? (
@@ -228,7 +253,7 @@ export function SearchScreen({ query }: { query: string }) {
         </Alert>
       ) : releases.length === 0 ? (
         <EmptyState icon={<IconSearch size={24} stroke={1.6} />} title="Nothing found">
-          <Text size="sm">Try other words, or other indexers.</Text>
+          <Text size="sm">Try other words, indexers or categories.</Text>
         </EmptyState>
       ) : (
         <ReleaseList
@@ -267,30 +292,34 @@ export function SearchScreen({ query }: { query: string }) {
       </ActionBar>
 
       <IndexerPicker
-        opened={pickerOpen}
-        onClose={() => {
-          setPickerOpen(false)
-        }}
+        opened={picker === 'indexers'}
+        onClose={closePicker}
         indexers={indexers.data ?? []}
         defaults={settings.data?.indexerIds ?? []}
         value={indexerIds}
         onChange={setIndexerIds}
       />
+      <CategorySheet
+        opened={picker === 'categories'}
+        onClose={closePicker}
+        tree={categoryTree.data ?? []}
+        defaults={settings.data?.searchCategories ?? []}
+        value={categories}
+        onChange={setCategories}
+      />
     </Stack>
   )
 }
 
-function describeIndexers(
-  override: number[] | undefined,
-  defaults: number[] | undefined,
-  indexers: Indexer[] | undefined,
-): string {
-  const ids = override ?? defaults ?? []
-  const prefix = override === undefined ? 'Default: ' : ''
-  if (ids.length === 0) return `${prefix}all indexers`
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function describeIndexers(ids: number[] | undefined, indexers: Indexer[] | undefined): string {
+  if (ids === undefined || ids.length === 0) return 'all indexers'
   const names = ids.map((id) => indexers?.find((i) => i.id === id)?.name ?? `#${String(id)}`)
-  if (names.length <= 2) return prefix + names.join(', ')
-  return `${prefix}${String(names.length)} indexers`
+  if (names.length <= 2) return names.join(', ')
+  return `${String(names.length)} indexers`
 }
 
 const ESTIMATED_ROW = 78
@@ -305,7 +334,7 @@ function ReleaseList({
   error,
   onLoadMore,
 }: {
-  releases: Release[]
+  releases: readonly Release[]
   selected: ReadonlySet<string>
   grabs: ReadonlyMap<string, GrabState>
   onToggle: (guid: string) => void
@@ -567,6 +596,71 @@ function IndexerPickerBody({
         <Button
           onClick={() => {
             onChange(draft.map(Number))
+            onClose()
+          }}
+        >
+          Apply
+        </Button>
+      </Group>
+    </Stack>
+  )
+}
+
+function CategorySheet({
+  opened,
+  onClose,
+  ...rest
+}: {
+  opened: boolean
+  onClose: () => void
+  tree: readonly SearchCategory[]
+  defaults: number[]
+  value: number[] | undefined
+  onChange: (ids: number[] | undefined) => void
+}) {
+  return (
+    <Sheet opened={opened} onClose={onClose} title="Categories for this search">
+      {/* Remounted on every opening, to start from the current choice. */}
+      <CategorySheetBody key={String(opened)} onClose={onClose} {...rest} />
+    </Sheet>
+  )
+}
+
+function CategorySheetBody({
+  onClose,
+  tree,
+  defaults,
+  value,
+  onChange,
+}: {
+  onClose: () => void
+  tree: readonly SearchCategory[]
+  defaults: number[]
+  value: number[] | undefined
+  onChange: (ids: number[] | undefined) => void
+}) {
+  const [draft, setDraft] = useState<number[]>(() => value ?? defaults)
+  return (
+    <Stack gap="md">
+      <Text size="sm" c="dimmed">
+        Only for searches from now on in this tab. The defaults are set in Settings. A whole
+        category includes its subcategories; none searches every category.
+      </Text>
+      <CategoryPicker tree={tree} value={draft} onChange={setDraft} label="Categories" />
+      <Group justify="space-between">
+        <Button
+          variant="subtle"
+          color="gray"
+          onClick={() => {
+            onChange(undefined)
+            onClose()
+          }}
+        >
+          Use defaults
+        </Button>
+        <Button
+          onClick={() => {
+            onChange(draft)
             onClose()
           }}
         >

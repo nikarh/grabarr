@@ -45,14 +45,27 @@ export function useDownloadClients() {
 
 export function useCategories(downloadClientId: number | null) {
   return useQuery({
-    queryKey: ['categories', downloadClientId],
-    queryFn: () => rpc.call('categories.list', { downloadClientId: downloadClientId ?? 0 }),
+    queryKey: ['downloadCategories', downloadClientId],
+    queryFn: () => rpc.call('downloadCategories.list', { downloadClientId: downloadClientId ?? 0 }),
     enabled: downloadClientId !== null,
   })
 }
 
-/** `indexerIds` undefined searches the default indexers. */
-export function useSearch(query: string, indexerIds: number[] | undefined) {
+export function useSearchCategories() {
+  return useQuery({
+    queryKey: ['searchCategories'],
+    queryFn: () => rpc.call('searchCategories.list'),
+    staleTime: Infinity,
+  })
+}
+
+/** What to search in; `undefined` means the defaults from the settings. */
+export interface SearchScope {
+  indexerIds: number[] | undefined
+  categories: number[] | undefined
+}
+
+export function useSearch(query: string, { indexerIds, categories }: SearchScope) {
   return useInfiniteQuery<
     SearchPage,
     RpcError,
@@ -60,13 +73,14 @@ export function useSearch(query: string, indexerIds: number[] | undefined) {
     readonly unknown[],
     number
   >({
-    queryKey: ['search', query, indexerIds ?? 'default'],
+    queryKey: ['search', query, indexerIds ?? 'default', categories ?? 'default'],
     queryFn: ({ pageParam }) =>
       rpc.call('search', {
         query,
         offset: pageParam,
         limit: PAGE_SIZE,
         ...(indexerIds === undefined ? {} : { indexerIds }),
+        ...(categories === undefined ? {} : { categories }),
       }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {

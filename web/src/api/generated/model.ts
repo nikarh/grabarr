@@ -15,6 +15,11 @@ publishDate: string | null,
  */
 infoUrl: string | null, };
 
+/**
+ * A Prowlarr (Newznab) search category, e.g. 2000 Movies, with its subcategories (2040 Movies/HD, ...).
+ */
+export type SearchCategory = { id: number, name: string, subcategories: Array<SearchCategory>, };
+
 export type SearchPage = { releases: Array<Release>, 
 /**
  * The offset of the next page, or `null` when this was the last one.
@@ -33,7 +38,11 @@ category: string | null,
 /**
  * Indexers searched when a search names none; empty means all of them.
  */
-indexerIds: Array<number>, };
+indexerIds: Array<number>, 
+/**
+ * Prowlarr categories searched unless a search names others; empty means all of them.
+ */
+searchCategories: Array<number>, };
 
 export type Torrent = { hash: string, name: string, status: TorrentStatus, 
 /**

@@ -53,6 +53,25 @@ struct Field {
     value: Value,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Category {
+    id: i64,
+    name: String,
+    #[serde(default)]
+    sub_categories: Vec<Category>,
+}
+
+impl From<Category> for api::SearchCategory {
+    fn from(c: Category) -> Self {
+        Self {
+            id: c.id,
+            name: c.name,
+            subcategories: c.sub_categories.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 /// A search result as Prowlarr returns it.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -186,10 +205,21 @@ impl Prowlarr {
             .map(|c| qbittorrent_settings(&c.fields)))
     }
 
+    /// The search categories. Prowlarr also lists a legacy "Other" with id 0, a duplicate of 8000: left out.
+    pub async fn search_categories(&self) -> Result<Vec<api::SearchCategory>, Error> {
+        let categories: Vec<Category> = self.get("indexer/categories", &[]).await?;
+        Ok(categories
+            .into_iter()
+            .filter(|c| c.id > 0)
+            .map(Into::into)
+            .collect())
+    }
+
     pub async fn search(
         &self,
         query: &str,
         indexer_ids: &[i64],
+        categories: &[i64],
         offset: u32,
         limit: u32,
     ) -> Result<Vec<Release>, Error> {
@@ -200,6 +230,7 @@ impl Prowlarr {
             ("limit", limit.to_string()),
         ];
         params.extend(indexer_ids.iter().map(|id| ("indexerIds", id.to_string())));
+        params.extend(categories.iter().map(|id| ("categories", id.to_string())));
         self.get("search", &params).await
     }
 }

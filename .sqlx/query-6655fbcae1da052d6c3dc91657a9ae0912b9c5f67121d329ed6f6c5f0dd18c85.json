@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO default_search_categories (category_id) VALUES (?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "6655fbcae1da052d6c3dc91657a9ae0912b9c5f67121d329ed6f6c5f0dd18c85"
+}

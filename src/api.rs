@@ -43,8 +43,11 @@ pub enum Call {
     #[serde(rename = "downloadClients.list")]
     DownloadClientsList,
     /// Result: `string[]`, the categories of a download client.
-    #[serde(rename = "categories.list")]
-    CategoriesList(CategoriesParams),
+    #[serde(rename = "downloadCategories.list")]
+    DownloadCategoriesList(CategoriesParams),
+    /// Result: `SearchCategory[]`, Prowlarr's search categories.
+    #[serde(rename = "searchCategories.list")]
+    SearchCategoriesList,
     /// Result: [`SearchPage`].
     #[serde(rename = "search")]
     Search(SearchParams),
@@ -118,6 +121,10 @@ pub struct Settings {
     /// Indexers searched when a search names none; empty means all of them.
     #[cfg_attr(test, ts(type = "Array<number>"))]
     pub indexer_ids: Vec<i64>,
+    /// Prowlarr categories searched unless a search names others; empty means all of them.
+    #[serde(default)]
+    #[cfg_attr(test, ts(type = "Array<number>"))]
+    pub search_categories: Vec<i64>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -140,6 +147,17 @@ pub struct DownloadClient {
     pub enabled: bool,
 }
 
+/// A Prowlarr (Newznab) search category, e.g. 2000 Movies, with its subcategories (2040 Movies/HD, ...).
+#[derive(Debug, Serialize, Clone)]
+#[cfg_attr(test, derive(TS), ts(export, export_to = "model.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct SearchCategory {
+    #[cfg_attr(test, ts(type = "number"))]
+    pub id: i64,
+    pub name: String,
+    pub subcategories: Vec<SearchCategory>,
+}
+
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(TS), ts(export, export_to = "rpc.ts"))]
 #[serde(rename_all = "camelCase")]
@@ -157,6 +175,10 @@ pub struct SearchParams {
     #[serde(default)]
     #[cfg_attr(test, ts(optional, type = "Array<number>"))]
     pub indexer_ids: Option<Vec<i64>>,
+    /// Prowlarr categories to search instead of the default ones; a parent category includes its subcategories.
+    #[serde(default)]
+    #[cfg_attr(test, ts(optional, type = "Array<number>"))]
+    pub categories: Option<Vec<i64>>,
     #[serde(default)]
     #[cfg_attr(test, ts(optional))]
     pub offset: Option<u32>,
