@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use reqwest::{RequestBuilder, Response, StatusCode, header};
-use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use crate::api::TorrentStatus;
@@ -41,18 +40,6 @@ pub struct Qbittorrent {
     password: Option<String>,
     /// `name=value` of the session cookie.
     cookie: Mutex<Option<String>>,
-}
-
-/// The response of `sync/maindata`; only what's needed.
-#[derive(Debug, Deserialize, Default)]
-pub struct MainData {
-    pub rid: u64,
-    #[serde(default)]
-    pub full_update: bool,
-    #[serde(default)]
-    pub torrents: BTreeMap<String, Map<String, Value>>,
-    #[serde(default)]
-    pub torrents_removed: Vec<String>,
 }
 
 impl Qbittorrent {
@@ -151,11 +138,19 @@ impl Qbittorrent {
         Ok(categories.into_keys().collect())
     }
 
-    pub async fn main_data(&self, rid: u64) -> Result<MainData, Error> {
-        let url = self.endpoint("sync/maindata");
-        let rid = rid.to_string();
+    /// The torrents of a category (or only those of `hashes` in it), each as qBittorrent's map of fields.
+    pub async fn torrents(
+        &self,
+        category: &str,
+        hashes: Option<&[String]>,
+    ) -> Result<Vec<Map<String, Value>>, Error> {
+        let url = self.endpoint("torrents/info");
+        let mut query = vec![("category", category.to_owned())];
+        if let Some(hashes) = hashes {
+            query.push(("hashes", hashes.join("|")));
+        }
         Ok(self
-            .send(|| self.http.get(&url).query(&[("rid", &rid)]))
+            .send(|| self.http.get(&url).query(&query))
             .await?
             .json()
             .await?)
@@ -227,15 +222,5 @@ mod tests {
         assert_eq!(status("pausedUP"), TorrentStatus::Completed);
         assert_eq!(status("stalledDL"), TorrentStatus::Stalled);
         assert_eq!(status("whatever"), TorrentStatus::Unknown);
-    }
-
-    #[test]
-    fn main_data_partial() {
-        let data: MainData =
-            serde_json::from_str(r#"{"rid":5,"torrents":{"abc":{"progress":0.5}}}"#).unwrap();
-        assert_eq!(data.rid, 5);
-        assert!(!data.full_update);
-        assert_eq!(data.torrents_removed, Vec::<String>::new());
-        assert_eq!(data.torrents["abc"]["progress"], 0.5);
     }
 }

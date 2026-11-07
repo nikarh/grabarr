@@ -1,8 +1,10 @@
 //! Watches the torrents of the default category and fans the changes out to subscribers.
 //!
-//! One poller of qBittorrent's `sync/maindata` runs while anyone is subscribed, however many subscribers there are.
+//! One poller runs while anyone is subscribed, however many subscribers there are. It asks qBittorrent for the
+//! category's torrents (`torrents/info`) rather than using the incremental `sync/maindata`: that is filtered by
+//! qBittorrent, stateless, and avoids crashes some qBittorrent versions have in generating incremental updates.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 
 use serde_json::{Map, Value};
@@ -118,32 +120,13 @@ impl Watcher {
     }
 }
 
-/// The poller's view of qBittorrent: all torrents' raw fields, merged from partial updates.
-#[derive(Default)]
-struct Sync {
-    rid: u64,
-    raw: HashMap<String, Map<String, Value>>,
-}
-
-impl Sync {
-    /// Applies an update and returns the torrents of `category`.
-    fn apply(&mut self, data: qbittorrent::MainData, category: &str) -> BTreeMap<String, Torrent> {
-        if data.full_update {
-            self.raw.clear();
-        }
-        self.rid = data.rid;
-        for hash in data.torrents_removed {
-            self.raw.remove(&hash);
-        }
-        for (hash, fields) in data.torrents {
-            self.raw.entry(hash).or_default().extend(fields);
-        }
-        self.raw
-            .iter()
-            .filter(|(_, t)| t.get("category").and_then(Value::as_str) == Some(category))
-            .map(|(hash, t)| (hash.clone(), torrent(hash, t)))
-            .collect()
-    }
+fn collect(list: &[Map<String, Value>]) -> BTreeMap<String, Torrent> {
+    list.iter()
+        .filter_map(|t| {
+            let hash = t.get("hash").and_then(Value::as_str)?;
+            Some((hash.to_owned(), torrent(hash, t)))
+        })
+        .collect()
 }
 
 /// qBittorrent's "infinity".
@@ -189,7 +172,6 @@ fn diff(old: &BTreeMap<String, Torrent>, new: &BTreeMap<String, Torrent>) -> Opt
 }
 
 async fn poll(app: Weak<App>, watcher: Arc<Watcher>) {
-    let mut sync = Sync::default();
     let mut generation = None;
     let mut failing = false;
 
@@ -207,12 +189,11 @@ async fn poll(app: Weak<App>, watcher: Arc<Watcher>) {
             }
             if generation != Some(inner.generation) {
                 generation = Some(inner.generation);
-                sync = Sync::default();
                 inner.torrents = None;
             }
         }
 
-        match fetch(&app, &mut sync).await {
+        match fetch(&app).await {
             Ok(torrents) => {
                 failing = false;
                 let mut inner = watcher
@@ -236,7 +217,6 @@ async fn poll(app: Weak<App>, watcher: Arc<Watcher>) {
                     tracing::warn!(%message, "Fetching torrents failed");
                 }
                 failing = true;
-                sync = Sync::default();
                 if let Ok(mut inner) = watcher.inner.lock() {
                     inner.torrents = None;
                 }
@@ -250,16 +230,13 @@ async fn poll(app: Weak<App>, watcher: Arc<Watcher>) {
     }
 }
 
-async fn fetch(
-    app: &App,
-    sync: &mut Sync,
-) -> Result<BTreeMap<String, Torrent>, (ErrorCode, String)> {
+async fn fetch(app: &App) -> Result<BTreeMap<String, Torrent>, (ErrorCode, String)> {
     let (qbt, category) = app.target().await.map_err(|e| (e.code, e.message))?;
-    let data = qbt
-        .main_data(sync.rid)
+    let list = qbt
+        .torrents(&category, None)
         .await
         .map_err(|e| (ErrorCode::Upstream, e.to_string()))?;
-    Ok(sync.apply(data, &category))
+    Ok(collect(&list))
 }
 
 #[cfg(test)]
@@ -267,52 +244,42 @@ mod tests {
     use super::*;
     use crate::api::TorrentStatus;
 
-    fn data(json: &str) -> qbittorrent::MainData {
-        serde_json::from_str(json).unwrap()
+    fn list(json: &str) -> BTreeMap<String, Torrent> {
+        collect(&serde_json::from_str::<Vec<Map<String, Value>>>(json).unwrap())
     }
 
     #[test]
-    fn merges_partial_updates() {
-        let mut sync = Sync::default();
-        let full = sync.apply(
-            data(
-                r#"{"rid":1,"full_update":true,"torrents":{
-                    "a":{"name":"A","category":"c","state":"downloading","progress":0.1,"size":100,"eta":60,"added_on":2},
-                    "b":{"name":"B","category":"other","state":"downloading"}}}"#,
-            ),
-            "c",
+    fn converts_and_diffs() {
+        let first = list(
+            r#"[{"hash":"a","name":"A","state":"downloading","progress":0.1,"size":100,"eta":60,"added_on":2},
+                {"hash":"b","name":"B","state":"stoppedDL","eta":8640000},
+                {"name":"no hash"}]"#,
         );
-        assert_eq!(full.len(), 1);
-        assert_eq!(full["a"].status, TorrentStatus::Downloading);
-        assert_eq!(full["a"].eta, Some(60));
+        assert_eq!(first.len(), 2);
+        assert_eq!(first["a"].status, TorrentStatus::Downloading);
+        assert_eq!(first["a"].eta, Some(60));
+        assert_eq!(first["b"].status, TorrentStatus::Paused);
+        assert_eq!(first["b"].eta, None);
 
-        let next = sync.apply(
-            data(
-                r#"{"rid":2,"torrents":{"a":{"progress":1.0,"state":"stalledUP","eta":8640000}}}"#,
-            ),
-            "c",
+        let next = list(
+            r#"[{"hash":"a","name":"A","state":"stalledUP","progress":1.0,"size":100,"added_on":2}]"#,
         );
-        assert_eq!(sync.rid, 2);
-        assert_eq!(next["a"].name, "A");
-        assert_eq!(next["a"].status, TorrentStatus::Seeding);
-        assert_eq!(next["a"].eta, None);
-
-        let Some(TorrentsEvent::Update { upserted, removed }) = diff(&full, &next) else {
+        let Some(TorrentsEvent::Update { upserted, removed }) = diff(&first, &next) else {
             panic!("expected an update");
         };
         assert_eq!(upserted.len(), 1);
-        assert_eq!(removed, Vec::<String>::new());
+        assert_eq!(upserted[0].status, TorrentStatus::Seeding);
+        assert_eq!(removed, vec!["b".to_owned()]);
         assert!(diff(&next, &next).is_none());
+    }
 
-        // Moving a torrent to another category removes it.
-        let moved = sync.apply(data(r#"{"rid":3,"torrents":{"a":{"category":"x"}}}"#), "c");
-        let Some(TorrentsEvent::Update { removed, .. }) = diff(&next, &moved) else {
-            panic!("expected an update");
+    #[test]
+    fn snapshot_is_newest_first() {
+        let TorrentsEvent::Snapshot { torrents } = snapshot(&list(
+            r#"[{"hash":"a","added_on":1},{"hash":"b","added_on":5}]"#,
+        )) else {
+            panic!("expected a snapshot");
         };
-        assert_eq!(removed, vec!["a".to_owned()]);
-
-        let gone = sync.apply(data(r#"{"rid":4,"torrents_removed":["a","b"]}"#), "x");
-        assert!(gone.is_empty());
-        assert!(sync.raw.is_empty());
+        assert_eq!(torrents[0].hash, "b");
     }
 }
