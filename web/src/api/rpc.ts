@@ -106,8 +106,12 @@ export class RpcClient {
     socket.addEventListener('open', () => {
       this.attempt = 0
       this.setState('open')
-      // Resubscribe under the same ids, ahead of anything queued while offline.
-      const resubscribe = [...this.subscriptions].map(([id, s]) => ({ id, ...s.call }))
+      // Resubscribe under the same ids, ahead of anything queued while offline; subscriptions made while connecting
+      // are queued already.
+      const queued = new Set(this.queue.map((r) => r.id))
+      const resubscribe = [...this.subscriptions]
+        .filter(([id]) => !queued.has(id))
+        .map(([id, s]) => ({ id, ...s.call }))
       this.queue = [...resubscribe, ...this.queue]
       this.flush()
     })

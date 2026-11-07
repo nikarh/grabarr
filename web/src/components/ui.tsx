@@ -54,11 +54,14 @@ export function Sheet({
         onClose={onClose}
         title={title}
         position="bottom"
-        size="auto"
         radius="lg"
         overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
         styles={{
-          content: { maxHeight: '88dvh', paddingBottom: 'var(--safe-bottom)' },
+          content: {
+            height: 'auto',
+            maxHeight: '88dvh',
+            paddingBottom: 'var(--safe-bottom)',
+          },
           title: { fontWeight: 650, fontSize: 17 },
         }}
       >

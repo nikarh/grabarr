@@ -68,6 +68,10 @@
   pointer-events: auto;
 }
 
+.saveBar :global(.mantine-Button-root[data-variant='subtle']) {
+  color: inherit;
+}
+
 .saveText {
   flex: 1;
 }
