@@ -23,3 +23,5 @@ conditions, and what changed. Never frame them around a particular deployment, a
 - A change to the configuration updates `README.md` and `config.example.toml` in the same commit.
 - The container image must keep working read-only, as any uid, with no capabilities: no writes outside the database
   directory, no listening on ports below 1024, nothing needing a shell or files from a distribution.
+- `web/package.json` `overrides` force fixed versions of vulnerable transitive dev dependencies whose dependents
+  haven't caught up yet. Drop an override once the dependent requires a fixed version itself.
