@@ -48,10 +48,17 @@ run = "cargo test --locked export_bindings"
 description = "Audit dependencies: advisories, licenses, duplicates, sources"
 run = "cargo deny check"
 
+[tasks.ci]
+description = "What CI's check job runs: lint, tests, and that generated files and action pins are up to date"
+depends = ["lint", "test"]
+run = [
+  "git diff --exit-code -- web/src/api/generated .sqlx",
+  "scripts/check-actions.sh",
+]
+
 [tasks.check]
 description = "Everything CI checks"
-depends = ["lint", "test", "deny"]
-run = "git diff --exit-code -- web/src/api/generated .sqlx"
+depends = ["ci", "deny"]
 
 [tasks."web:build"]
 description = "Build the frontend into web/dist (embedded by the next cargo build)"

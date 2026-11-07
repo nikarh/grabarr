@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+  - package-ecosystem: "cargo"
+    directory: "/"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+    allow:
+      # Also bump transitive dependencies in Cargo.lock.
+      - dependency-type: "all"
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "npm"
+    directory: "/web"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+    groups:
+      web-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Only consumed for its rule presets: eslint-plugin-react and eslint-plugin-jsx-a11y don't accept ESLint 10 as
+      # a peer yet, which @eslint/js 10 requires.
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "docker"
+    directory: "/"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns: ["*"]

@@ -33,6 +33,9 @@ FROM scratch
 # Copying the directory's contents keeps the mode of /data, which copying the directory itself would not.
 COPY --from=build /rootfs/ /
 # nobody:nogroup. Any other uid:gid works too (`user:` in compose).
+LABEL org.opencontainers.image.source="https://github.com/nikarh/grabarr" \
+      org.opencontainers.image.description="Search Prowlarr, grab to qBittorrent, watch the downloads" \
+      org.opencontainers.image.licenses="MIT OR Apache-2.0"
 USER 65534:65534
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s CMD ["/grabarr", "healthcheck"]
