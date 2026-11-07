@@ -191,8 +191,7 @@ impl App {
             .prowlarr
             .search(query, &indexer_ids, offset, limit)
             .await?;
-        // An empty page ends the results; a short one doesn't, since Prowlarr merges pages of several indexers.
-        let next_offset = (!releases.is_empty()).then(|| offset.saturating_add(limit));
+        let next_offset = next_offset(offset, &releases);
         let releases: Vec<_> = releases
             .into_iter()
             .filter(|r| r.protocol.is_empty() || r.protocol == "torrent")
@@ -242,10 +241,11 @@ impl App {
             )
         })?;
         let (qbt, category) = self.target().await?;
+        // Prowlarr's magnetUrl may itself be a link through Prowlarr that redirects to the magnet.
         let source = match (&release.magnet_url, &release.download_url) {
             (Some(magnet), _) if magnet.starts_with("magnet:") => Source::Url(magnet.clone()),
-            (_, Some(url)) => self.fetch_torrent(url).await?,
-            _ => {
+            (_, Some(url)) | (Some(url), None) => self.fetch_torrent(url).await?,
+            (None, None) => {
                 return Err(Error::new(
                     ErrorCode::Upstream,
                     "the release has no download link",
@@ -321,14 +321,12 @@ impl App {
         }
         let (qbt, category) = self.target().await?;
         // Only torrents of the category may be removed: check against qBittorrent itself.
-        let data = qbt.main_data(0).await?;
-        if let Some(hash) = hashes.iter().find(|h| {
-            data.torrents
-                .get(*h)
-                .and_then(|t| t.get("category"))
-                .and_then(|c| c.as_str())
-                != Some(category.as_str())
-        }) {
+        let found = qbt.torrents(&category, Some(&hashes)).await?;
+        let found: std::collections::HashSet<&str> = found
+            .iter()
+            .filter_map(|t| t.get("hash").and_then(|h| h.as_str()))
+            .collect();
+        if let Some(hash) = hashes.iter().find(|h| !found.contains(h.as_str())) {
             return Err(Error::new(
                 ErrorCode::BadRequest,
                 format!("torrent {hash} is not in the category {category}"),
@@ -341,9 +339,50 @@ impl App {
     }
 }
 
+/// Where the next page starts. Prowlarr hands the offset to every indexer, each answers with a page of its own size
+/// (some ignore the limit), and indexers that can't page answer anything past the first page with nothing. So the
+/// next page starts after the longest page any indexer gave, and an empty page is the end.
+fn next_offset(offset: u32, releases: &[prowlarr::Release]) -> Option<u32> {
+    let mut per_indexer: HashMap<i64, u32> = HashMap::new();
+    for r in releases {
+        *per_indexer.entry(r.indexer_id).or_default() += 1;
+    }
+    per_indexer
+        .into_values()
+        .max()
+        .map(|longest| offset.saturating_add(longest))
+}
+
 /// A client is cached only while it's the default one.
 async fn id_matches_settings(db: &Db, id: i64) -> bool {
     db.settings()
         .await
         .is_ok_and(|s| s.download_client_id == Some(id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn releases(indexers: &[(i64, usize)]) -> Vec<prowlarr::Release> {
+        indexers
+            .iter()
+            .flat_map(|&(id, n)| {
+                (0..n).map(move |i| {
+                    serde_json::from_value(serde_json::json!({
+                        "guid": format!("{id}-{i}"),
+                        "indexerId": id,
+                    }))
+                    .unwrap()
+                })
+            })
+            .collect()
+    }
+
+    #[test]
+    fn next_page_follows_the_longest_indexer_page() {
+        assert_eq!(next_offset(0, &releases(&[(1, 100), (2, 25)])), Some(100));
+        assert_eq!(next_offset(100, &releases(&[(2, 50)])), Some(150));
+        assert_eq!(next_offset(200, &[]), None);
+    }
 }
