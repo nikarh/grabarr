@@ -27,7 +27,6 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 
 import type { Torrent } from '../api/generated/model'
 import type { TorrentsState } from '../api/hooks'
-import { useSettings } from '../api/hooks'
 import { rpc } from '../api/rpc'
 import { ActionBar, EmptyState, Sheet, StatusLabel } from '../components/ui'
 import ui from '../components/ui.module.css'
@@ -40,7 +39,6 @@ import classes from './Downloads.module.css'
 type Filter = 'all' | 'active' | 'done'
 
 export function DownloadsScreen({ state }: { state: TorrentsState }) {
-  const settings = useSettings()
   const [filter, setFilter] = useState<Filter>('all')
   const [text, setText] = useState('')
   const [needle] = useDebouncedValue(text.trim().toLowerCase(), 150)
@@ -125,14 +123,6 @@ export function DownloadsScreen({ state }: { state: TorrentsState }) {
   return (
     <Stack gap="md">
       <div className={classes.summary}>
-        <div>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600} lts="0.06em">
-            Category
-          </Text>
-          <Text fw={650} size="lg" lh={1.2}>
-            {settings.data?.category ?? '—'}
-          </Text>
-        </div>
         <div className={classes.stats}>
           <Stat label="Torrents" value={String(all.length)} />
           <Stat label="Active" value={String(stats.active)} />
@@ -150,7 +140,7 @@ export function DownloadsScreen({ state }: { state: TorrentsState }) {
         </div>
       </div>
 
-      <Group gap="sm" wrap="wrap">
+      <div className={classes.controls}>
         <SegmentedControl
           value={filter}
           onChange={(v) => {
@@ -163,6 +153,7 @@ export function DownloadsScreen({ state }: { state: TorrentsState }) {
           ]}
           radius="md"
           className={classes.segments}
+          fullWidth
         />
         <TextInput
           className={classes.filter}
@@ -174,7 +165,7 @@ export function DownloadsScreen({ state }: { state: TorrentsState }) {
             setText(e.currentTarget.value)
           }}
         />
-      </Group>
+      </div>
 
       {state.status === 'error' && (
         <Alert

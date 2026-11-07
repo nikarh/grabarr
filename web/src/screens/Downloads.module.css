@@ -1,10 +1,5 @@
 .summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px 24px;
-  padding: 16px;
+  padding: 14px 16px;
   border-radius: var(--mantine-radius-lg);
   border: 1px solid var(--hairline);
   background:
@@ -18,14 +13,15 @@
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, auto);
-  gap: 4px 22px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 12px;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .statLabel {
@@ -50,24 +46,28 @@
 }
 
 @media (max-width: 36em) {
-  .summary {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px 12px;
-  }
-
   .statValue {
     font-size: 13.5px;
   }
 }
 
+/* The status switch and the name filter share a row when there is room; on their own rows, both span the width. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .segments {
+  flex: 1 1 280px;
   background: var(--surface);
   border: 1px solid var(--hairline);
+}
+
+@media (min-width: 48em) {
+  .segments {
+    flex: 0 0 auto;
+  }
 }
 
 .filter {
