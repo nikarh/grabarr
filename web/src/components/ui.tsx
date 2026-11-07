@@ -56,6 +56,8 @@ export function Sheet({
         position="bottom"
         radius="lg"
         overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+        // The gutter is reserved (see styles.css): hiding the scrollbar would shift the page.
+        removeScrollProps={{ removeScrollBar: false }}
         styles={{
           content: {
             height: 'auto',
@@ -77,6 +79,7 @@ export function Sheet({
       centered
       radius="lg"
       overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      removeScrollProps={{ removeScrollBar: false }}
       styles={{ title: { fontWeight: 650, fontSize: 17 } }}
     >
       {children}

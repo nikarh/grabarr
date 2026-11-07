@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs the backend (restarted by cargo-watch-free polling: rerun `mise run dev` after Rust changes) and the Vite dev
-# server, which proxies /api to the backend.
+# Runs the backend and the Vite dev server at http://localhost:5173, which proxies /api to it.
+# Rust changes need a restart.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 

@@ -21,6 +21,11 @@
   --status-queued: light-dark(#6d4fd6, #a998ff);
 }
 
+/* Space for the scrollbar is always reserved, so the layout doesn't shift between short and long pages. */
+html {
+  scrollbar-gutter: stable;
+}
+
 :root[data-mantine-color-scheme='light'] {
   color-scheme: light;
 }
