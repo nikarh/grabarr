@@ -1,5 +1,5 @@
 :root {
-  --tabbar-height: 64px;
+  --tabbar-height: 66px;
   --header-height: 56px;
   --content-width: 920px;
   --hairline: light-dark(rgb(15 20 25 / 0.08), rgb(255 255 255 / 0.065));
