@@ -35,6 +35,7 @@ import { cx } from '../lib/cx'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { href } from '../lib/router'
 import { isActive, isDone, statusColor } from '../lib/status'
+import { asideStyle } from '../lib/rowAside'
 import { useTruncated } from '../lib/useTruncated'
 import classes from './Downloads.module.css'
 
@@ -381,8 +382,9 @@ const TorrentRow = memo(function TorrentRow({
   const truncated = useTruncated(titleRef)
   const id = `torrent-${torrent.hash}`
   const downloading = torrent.status === 'downloading' || torrent.status === 'metadata'
+  const showToggle = truncated || expanded
   return (
-    <div className={ui.row} data-selected={selected}>
+    <div className={ui.row} data-selected={selected} style={asideStyle(Number(showToggle))}>
       <label className={ui.rowMain} htmlFor={id}>
         <Checkbox
           id={id}
@@ -394,6 +396,7 @@ const TorrentRow = memo(function TorrentRow({
           aria-label={torrent.name}
         />
         <div className={ui.rowBody}>
+          {showToggle && <div className={ui.rowSpace} />}
           <div className={ui.rowTitle} ref={titleRef} data-expanded={expanded}>
             {torrent.name}
           </div>
@@ -429,7 +432,7 @@ const TorrentRow = memo(function TorrentRow({
           </div>
         </div>
       </label>
-      {(truncated || expanded) && (
+      {showToggle && (
         <div className={ui.rowAside}>
           <TitleToggle
             expanded={expanded}

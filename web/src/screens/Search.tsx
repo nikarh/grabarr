@@ -42,6 +42,7 @@ import { formatAge, formatBytes } from '../lib/format'
 import { href, navigate } from '../lib/router'
 import { SORT_LABELS, SORT_ORDERS, sortReleases, type SortOrder } from '../lib/sort'
 import { useNow } from '../lib/useNow'
+import { asideStyle } from '../lib/rowAside'
 import { useTruncated } from '../lib/useTruncated'
 import classes from './Search.module.css'
 
@@ -520,12 +521,15 @@ const ReleaseRow = memo(function ReleaseRow({
   now: number
 }) {
   const titleRef = useRef<HTMLDivElement>(null)
-  const truncated = useTruncated(titleRef)
+  const truncated = useTruncated(titleRef, grab !== undefined)
   const age = formatAge(release.publishDate, now)
   const seeders = release.seeders ?? 0
   const id = `release-${release.guid}`
+  const showToggle = truncated || expanded
+  const asideItems =
+    Number(grab !== undefined) + Number(showToggle) + Number(release.infoUrl !== null)
   return (
-    <div className={ui.row} data-selected={selected}>
+    <div className={ui.row} data-selected={selected} style={asideStyle(asideItems)}>
       <label className={ui.rowMain} htmlFor={id}>
         <Checkbox
           id={id}
@@ -537,6 +541,7 @@ const ReleaseRow = memo(function ReleaseRow({
           aria-label={release.title}
         />
         <div className={ui.rowBody}>
+          {asideItems > 0 && <div className={ui.rowSpace} />}
           <div className={ui.rowTitle} ref={titleRef} data-expanded={expanded}>
             {release.title}
           </div>
@@ -560,8 +565,12 @@ const ReleaseRow = memo(function ReleaseRow({
         </div>
       </label>
       <div className={ui.rowAside}>
-        <GrabIndicator grab={grab} />
-        {(truncated || expanded) && (
+        {grab !== undefined && (
+          <span className={ui.asideSlot}>
+            <GrabIndicator grab={grab} />
+          </span>
+        )}
+        {showToggle && (
           <TitleToggle
             expanded={expanded}
             name={release.title}
