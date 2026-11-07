@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM default_indexers",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "90f4f42082cac3cb29941fe30727dd72ce196fb2c3a1d75fedeac3ef1ba1bcb3"
+}

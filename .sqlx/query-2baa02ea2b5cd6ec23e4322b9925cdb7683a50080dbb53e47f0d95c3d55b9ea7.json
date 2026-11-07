@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT download_client_id, category FROM settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "download_client_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "settings",
+            "name": "download_client_id"
+          }
+        }
+      },
+      {
+        "name": "category",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "settings",
+            "name": "category"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "2baa02ea2b5cd6ec23e4322b9925cdb7683a50080dbb53e47f0d95c3d55b9ea7"
+}

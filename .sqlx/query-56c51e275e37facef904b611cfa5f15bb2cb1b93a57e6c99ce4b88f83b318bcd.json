@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO default_indexers (indexer_id) VALUES (?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "56c51e275e37facef904b611cfa5f15bb2cb1b93a57e6c99ce4b88f83b318bcd"
+}
