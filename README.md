@@ -21,8 +21,8 @@ about 10 MB that runs as `nobody`, on a read-only filesystem, without any capabi
 ```yaml
 services:
   grabarr:
-    # Built by CI and pushed to Docker Hub (see .github/workflows/ci.yml); or build it: `docker build -t grabarr .`
-    image: <dockerhub-user>/grabarr:latest
+    # `latest` is the newest release, `X.Y.Z` / `X.Y` a release, `main` the tip of main.
+    image: ghcr.io/nikarh/grabarr:latest
     restart: unless-stopped
     # Everything below is optional hardening; the image works with all of it.
     read_only: true
@@ -110,6 +110,21 @@ only asks for a password if qBittorrent refuses it.
 qBittorrent rejects requests whose `Host` header names another port than its own (its *host header validation*), so
 reach it on the port it listens on, not through a remapped one.
 
+### Without Docker
+
+Every [release](https://github.com/nikarh/grabarr/releases) has the static binary for x86_64 Linux (no dependencies),
+and the `latest` pre-release has the newest build of `main`. `SHA256SUMS.asc` signs the checksums of the files:
+
+```sh
+base=https://github.com/nikarh/grabarr/releases/latest/download
+curl -fL -O "$base/grabarr-x86_64-unknown-linux-musl" -O "$base/SHA256SUMS" -O "$base/SHA256SUMS.asc"
+curl -fL https://raw.githubusercontent.com/nikarh/grabarr/main/docs/signing-key.asc | gpg --import
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+The signing key is "grabarr releases", `990AAEA980944EA7C73CDCD4FCD6BDF753A0EDA4`.
+
 ## Configuration
 
 A TOML file, `/config/config.toml` by default (`--config <path>` or `GRABARR_CONFIG` to change it).
@@ -167,12 +182,8 @@ For `mise run dev`, create `dev/config.toml` (the `dev/` directory is ignored by
 `database.path = "dev/grabarr.db"`, `server.listen = "127.0.0.1:8080"`, and
 `server.allowed_origins = ["http://localhost:5173"]`.
 
-CI (`.github/workflows/ci.yml`) runs `mise run check` on every push and pull request. Pushes to `main` and `v*` tags
-then build the amd64 image, smoke-test it read-only without capabilities, and push it to Docker Hub (`main`,
-`sha-<commit>`; `X.Y.Z`, `X.Y`, `latest` for tags). It needs the repository secrets `DOCKERHUB_USERNAME` and
-`DOCKERHUB_TOKEN`, and optionally the variable `DOCKERHUB_IMAGE` (default `<username>/grabarr`). It's built to spend
-few runner minutes: one job for the checks, caches for Rust and npm, docs-only changes skipped, and the image wraps a
-binary compiled with the cache rather than compiling inside Docker.
+CI runs `mise run ci` and `cargo deny` on every push and pull request. Releases, the rolling `latest` pre-release built
+from `main`, the container images and the signing are described in [docs/releasing.md](docs/releasing.md).
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org); the changelog is generated from them by
 [git-cliff](https://git-cliff.org).
