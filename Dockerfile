@@ -18,6 +18,8 @@ COPY .sqlx .sqlx
 COPY migrations migrations
 COPY src src
 COPY --from=web /src/web/dist web/dist
+# Appended to the version (`--version`), e.g. -dev+abc1234 for a build of a branch.
+ARG GRABARR_VERSION_SUFFIX=""
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     set -eux; \

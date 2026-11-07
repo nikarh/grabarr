@@ -114,12 +114,12 @@
 .main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 16px 16px calc(var(--tabbar-height) + var(--safe-bottom) + 16px);
+  padding: 16px 16px calc(var(--tabbar-height) + 16px);
 }
 
 /* Room for a floating action bar, only while one shows. */
 .main:has([data-floating-bar='visible']) {
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 88px);
+  padding-bottom: calc(var(--tabbar-height) + 88px);
 }
 
 .tabbar {
@@ -128,13 +128,31 @@
   right: 0;
   bottom: 0;
   z-index: 60;
-  height: calc(var(--tabbar-height) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  height: var(--tabbar-height);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: color-mix(in srgb, light-dark(#ffffff, var(--mantine-color-dark-7)) 88%, transparent);
   backdrop-filter: blur(16px) saturate(150%);
   border-top: 1px solid var(--hairline);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Its background runs on below the screen's edge: where the browser draws it a few pixels too high while its toolbar
+   moves, nothing shows through underneath. */
+.tabbar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: inherit;
+}
+
+/* Hidden while scrolling down (Firefox for Android only, see useTabBarAutoHide). */
+/* Further than its height, so that it doesn't peek out when drawn too high. */
+.tabbar[data-hidden='true'] {
+  transform: translateY(calc(100% + 24px));
 }
 
 .tab {
@@ -143,7 +161,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  /* A little below the middle: centred, the icons look pushed up against the bar's top edge and its indicator. */
+  padding-top: 6px;
+  gap: 4px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;

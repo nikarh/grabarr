@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useConnectionState } from '../api/hooks'
 import { href, type Screen } from '../lib/router'
 import { cx } from '../lib/cx'
+import { useTabBarAutoHide } from '../lib/useTabBarAutoHide'
 import { LogoMark } from './Logo'
 import classes from './Shell.module.css'
 
@@ -29,6 +30,7 @@ export function Shell({
   children: ReactNode
 }) {
   const connection = useConnectionState()
+  const tabBarHidden = useTabBarAutoHide(screen)
   return (
     <>
       <header className={classes.header}>
@@ -60,7 +62,7 @@ export function Shell({
         </div>
       </header>
       <main className={classes.main}>{children}</main>
-      <nav className={classes.tabbar} aria-label="Main">
+      <nav className={classes.tabbar} aria-label="Main" data-hidden={tabBarHidden}>
         {TABS.map(({ screen: s, label, icon: Icon }) => (
           <a
             key={s}

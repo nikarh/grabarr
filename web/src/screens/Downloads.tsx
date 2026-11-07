@@ -23,17 +23,29 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { Torrent } from '../api/generated/model'
 import type { TorrentsState } from '../api/hooks'
 import { rpc } from '../api/rpc'
+import { TitleToggle } from '../components/TitleToggle'
 import { ActionBar, EmptyState, Sheet, StatusLabel } from '../components/ui'
 import ui from '../components/ui.module.css'
 import { cx } from '../lib/cx'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { href } from '../lib/router'
 import { isActive, isDone, statusColor } from '../lib/status'
+import { asideStyle } from '../lib/rowAside'
+import { useTruncated } from '../lib/useTruncated'
 import classes from './Downloads.module.css'
 
 type Filter = 'all' | 'active' | 'done'
@@ -306,6 +318,15 @@ function TorrentList({
   onToggle: (hash: string) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
+  // Here rather than in the rows, which unmount when scrolled out of view.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const toggleExpanded = useCallback((hash: string) => {
+    setExpanded((e) => {
+      const next = new Set(e)
+      if (!next.delete(hash)) next.add(hash)
+      return next
+    })
+  }, [])
   const [scrollMargin, setScrollMargin] = useState(0)
   useEffect(() => {
     setScrollMargin(listRef.current?.offsetTop ?? 0)
@@ -318,6 +339,14 @@ function TorrentList({
     scrollMargin,
     getItemKey: (i) => torrents[i]?.hash ?? i,
   })
+  // A row that grows or shrinks moves the rows below it in the same frame; the virtualizer's own measuring (a
+  // ResizeObserver) would leave them a frame behind, drawn over by the grown row. (Its measureElement() returns the
+  // cached size outside of the observer, hence resizeItem().)
+  useLayoutEffect(() => {
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>('[data-index]') ?? []) {
+      virtualizer.resizeItem(Number(row.dataset.index), row.offsetHeight)
+    }
+  }, [expanded, virtualizer])
 
   return (
     <div ref={listRef} className={ui.list}>
@@ -341,7 +370,9 @@ function TorrentList({
               <TorrentRow
                 torrent={torrent}
                 selected={selected.has(torrent.hash)}
+                expanded={expanded.has(torrent.hash)}
                 onToggle={onToggle}
+                onExpand={toggleExpanded}
               />
             </div>
           )
@@ -354,16 +385,23 @@ function TorrentList({
 const TorrentRow = memo(function TorrentRow({
   torrent,
   selected,
+  expanded,
   onToggle,
+  onExpand,
 }: {
   torrent: Torrent
   selected: boolean
+  expanded: boolean
   onToggle: (hash: string) => void
+  onExpand: (hash: string) => void
 }) {
+  const titleRef = useRef<HTMLDivElement>(null)
+  const truncated = useTruncated(titleRef)
   const id = `torrent-${torrent.hash}`
   const downloading = torrent.status === 'downloading' || torrent.status === 'metadata'
+  const showToggle = truncated || expanded
   return (
-    <div className={ui.row} data-selected={selected}>
+    <div className={ui.row} data-selected={selected} style={asideStyle(Number(showToggle))}>
       <label className={ui.rowMain} htmlFor={id}>
         <Checkbox
           id={id}
@@ -375,7 +413,10 @@ const TorrentRow = memo(function TorrentRow({
           aria-label={torrent.name}
         />
         <div className={ui.rowBody}>
-          <div className={ui.rowTitle}>{torrent.name}</div>
+          {showToggle && <div className={ui.rowSpace} />}
+          <div className={ui.rowTitle} ref={titleRef} data-expanded={expanded}>
+            {torrent.name}
+          </div>
           <div className={classes.progressLine}>
             <Progress
               value={torrent.progress * 100}
@@ -408,6 +449,17 @@ const TorrentRow = memo(function TorrentRow({
           </div>
         </div>
       </label>
+      {showToggle && (
+        <div className={ui.rowAside}>
+          <TitleToggle
+            expanded={expanded}
+            name={torrent.name}
+            onToggle={() => {
+              onExpand(torrent.hash)
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 })

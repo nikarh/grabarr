@@ -80,7 +80,6 @@ export function Sheet({
           content: {
             height: 'auto',
             maxHeight: '88dvh',
-            paddingBottom: 'var(--safe-bottom)',
           },
           title: { fontWeight: 650, fontSize: 17 },
         }}

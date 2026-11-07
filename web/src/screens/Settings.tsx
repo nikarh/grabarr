@@ -10,7 +10,7 @@ import {
   Text,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { IconAlertTriangle, IconCheck } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconDownload, IconSearch } from '@tabler/icons-react'
 import { useState, type ReactNode } from 'react'
 
 import type { Settings } from '../api/generated/model'
@@ -90,121 +90,130 @@ function SettingsForm({ saved }: { saved: Settings }) {
           Settings
         </Text>
         <Text size="sm" c="dimmed">
-          Where grabs go. Shared by everyone using this instance.
+          Shared by everyone using this instance.
         </Text>
       </div>
 
-      <Section
-        title="Download client"
-        description="A qBittorrent client from Prowlarr. Grabs are sent to it, and Downloads shows it."
+      <ServiceGroup
+        service="qBittorrent"
+        summary="Where grabs go, and what Downloads shows."
+        icon={<IconDownload size={16} stroke={1.9} />}
       >
-        {clients.isError ? (
-          <Text size="sm" c="red">
-            {clients.error.message}
-          </Text>
-        ) : (
-          <Select
-            placeholder={clients.isPending ? 'Loading…' : 'Choose a download client'}
-            aria-label="Download client"
-            data={(clients.data ?? []).map((c) => ({
-              value: String(c.id),
-              label: c.enabled ? c.name : `${c.name} (disabled)`,
-            }))}
-            value={draft.downloadClientId === null ? null : String(draft.downloadClientId)}
+        <Section
+          title="Download client"
+          description="One of the qBittorrent download clients configured in Prowlarr."
+        >
+          {clients.isError ? (
+            <Text size="sm" c="red">
+              {clients.error.message}
+            </Text>
+          ) : (
+            <Select
+              placeholder={clients.isPending ? 'Loading…' : 'Choose a download client'}
+              aria-label="Download client"
+              data={(clients.data ?? []).map((c) => ({
+                value: String(c.id),
+                label: c.enabled ? c.name : `${c.name} (disabled)`,
+              }))}
+              value={draft.downloadClientId === null ? null : String(draft.downloadClientId)}
+              onChange={(v) => {
+                setDraft((d) => ({ ...d, downloadClientId: v === null ? null : Number(v) }))
+              }}
+              nothingFoundMessage="Prowlarr has no qBittorrent download client"
+              allowDeselect={false}
+              size="md"
+              classNames={{ input: classes.input }}
+            />
+          )}
+        </Section>
+
+        <Section
+          title="qBittorrent category"
+          description="Grabs get this category, and Downloads shows only torrents in it. A new one is created on the first grab."
+        >
+          <Autocomplete
+            placeholder={draft.downloadClientId === null ? 'Choose a client first' : 'e.g. grabarr'}
+            aria-label="Category"
+            disabled={draft.downloadClientId === null}
+            data={categories.data ?? []}
+            value={draft.category ?? ''}
             onChange={(v) => {
-              setDraft((d) => ({ ...d, downloadClientId: v === null ? null : Number(v) }))
+              setDraft((d) => ({ ...d, category: v === '' ? null : v }))
             }}
-            nothingFoundMessage="Prowlarr has no qBittorrent download client"
-            allowDeselect={false}
             size="md"
             classNames={{ input: classes.input }}
+            error={categories.isError ? categories.error.message : undefined}
           />
-        )}
-      </Section>
+        </Section>
+      </ServiceGroup>
 
-      <Section
-        title="Category"
-        description="Grabs get this category, and Downloads shows only torrents in it. A new one is created on the first grab."
+      <ServiceGroup
+        service="Prowlarr"
+        summary="What searches look in, unless a search picks something else."
+        icon={<IconSearch size={16} stroke={1.9} />}
       >
-        <Autocomplete
-          placeholder={draft.downloadClientId === null ? 'Choose a client first' : 'e.g. grabarr'}
-          aria-label="Category"
-          disabled={draft.downloadClientId === null}
-          data={categories.data ?? []}
-          value={draft.category ?? ''}
-          onChange={(v) => {
-            setDraft((d) => ({ ...d, category: v === '' ? null : v }))
-          }}
-          size="md"
-          classNames={{ input: classes.input }}
-          error={categories.isError ? categories.error.message : undefined}
-        />
-      </Section>
-
-      <Section
-        title="Default indexers"
-        description="Searched unless a search picks others. None selected searches all of them."
-      >
-        {indexers.isError ? (
-          <Text size="sm" c="red">
-            {indexers.error.message}
-          </Text>
-        ) : indexers.isPending ? (
-          <Loader size="xs" color="signal" />
-        ) : (
-          <Checkbox.Group
-            value={draft.indexerIds.map(String)}
-            onChange={(v) => {
-              setDraft((d) => ({ ...d, indexerIds: v.map(Number).sort((a, b) => a - b) }))
-            }}
-          >
-            <div className={classes.indexers}>
-              {indexers.data.map((indexer) => (
-                <Checkbox.Card
-                  key={indexer.id}
-                  value={String(indexer.id)}
-                  className={classes.indexer}
-                  radius="md"
-                >
-                  <Group wrap="nowrap" gap="sm">
-                    <Checkbox.Indicator size="sm" />
-                    <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
-                      {indexer.name}
-                    </Text>
-                    {!indexer.enabled && (
-                      <Text size="xs" c="dimmed">
-                        disabled
+        <Section title="Indexers" description="None selected searches all of them.">
+          {indexers.isError ? (
+            <Text size="sm" c="red">
+              {indexers.error.message}
+            </Text>
+          ) : indexers.isPending ? (
+            <Loader size="xs" color="signal" />
+          ) : (
+            <Checkbox.Group
+              value={draft.indexerIds.map(String)}
+              onChange={(v) => {
+                setDraft((d) => ({ ...d, indexerIds: v.map(Number).sort((a, b) => a - b) }))
+              }}
+            >
+              <div className={classes.indexers}>
+                {indexers.data.map((indexer) => (
+                  <Checkbox.Card
+                    key={indexer.id}
+                    value={String(indexer.id)}
+                    className={classes.indexer}
+                    radius="md"
+                  >
+                    <Group wrap="nowrap" gap="sm">
+                      <Checkbox.Indicator size="sm" />
+                      <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
+                        {indexer.name}
                       </Text>
-                    )}
-                  </Group>
-                </Checkbox.Card>
-              ))}
-            </div>
-          </Checkbox.Group>
-        )}
-      </Section>
+                      {!indexer.enabled && (
+                        <Text size="xs" c="dimmed">
+                          disabled
+                        </Text>
+                      )}
+                    </Group>
+                  </Checkbox.Card>
+                ))}
+              </div>
+            </Checkbox.Group>
+          )}
+        </Section>
 
-      <Section
-        title="Default categories"
-        description="Searched unless a search picks others. A whole category includes its subcategories; none searches every category."
-      >
-        {searchCategories.isError ? (
-          <Text size="sm" c="red">
-            {searchCategories.error.message}
-          </Text>
-        ) : searchCategories.isPending ? (
-          <Loader size="xs" color="signal" />
-        ) : (
-          <CategoryPicker
-            tree={searchCategories.data}
-            value={draft.searchCategories}
-            onChange={(ids) => {
-              setDraft((d) => ({ ...d, searchCategories: ids }))
-            }}
-            label="Default categories"
-          />
-        )}
-      </Section>
+        <Section
+          title="Search categories"
+          description="Prowlarr's categories, not qBittorrent's. A whole category includes its subcategories; none searches every category."
+        >
+          {searchCategories.isError ? (
+            <Text size="sm" c="red">
+              {searchCategories.error.message}
+            </Text>
+          ) : searchCategories.isPending ? (
+            <Loader size="xs" color="signal" />
+          ) : (
+            <CategoryPicker
+              tree={searchCategories.data}
+              value={draft.searchCategories}
+              onChange={(ids) => {
+                setDraft((d) => ({ ...d, searchCategories: ids }))
+              }}
+              label="Search categories"
+            />
+          )}
+        </Section>
+      </ServiceGroup>
 
       <ActionBar label="Unsaved changes" visible={dirty}>
         <Button
@@ -221,6 +230,36 @@ function SettingsForm({ saved }: { saved: Settings }) {
         </Button>
       </ActionBar>
     </Stack>
+  )
+}
+
+/** The settings of one service, under its name. */
+function ServiceGroup({
+  service,
+  summary,
+  icon,
+  children,
+}: {
+  service: string
+  summary: string
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className={classes.group} aria-label={service}>
+      <div className={classes.groupHead}>
+        <span className={classes.groupIcon}>{icon}</span>
+        <div>
+          <Text fw={650} size="md" lh={1.2}>
+            {service}
+          </Text>
+          <Text size="sm" c="dimmed" lh={1.35}>
+            {summary}
+          </Text>
+        </div>
+      </div>
+      {children}
+    </section>
   )
 }
 

@@ -51,6 +51,6 @@ export const theme = createTheme({
     Checkbox: { defaultProps: { radius: 'sm' } },
     Progress: { defaultProps: { size: 4, radius: 'xl' } },
     Badge: { defaultProps: { radius: 'sm', variant: 'light' } },
-    Notification: { defaultProps: { radius: 'md' } },
+    Notification: { defaultProps: { radius: 'lg' }, classNames: { root: 'app-notification' } },
   },
 })

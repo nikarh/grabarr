@@ -27,12 +27,22 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
-import { memo, useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SubmitEvent,
+} from 'react'
 
 import type { Indexer, Release, SearchCategory } from '../api/generated/model'
 import { useIndexers, useSearch, useSearchCategories, useSettings } from '../api/hooks'
 import { rpc, RpcError } from '../api/rpc'
 import { CategoryPicker } from '../components/CategoryPicker'
+import { TitleToggle } from '../components/TitleToggle'
 import { ActionBar, EmptyState, Sheet } from '../components/ui'
 import ui from '../components/ui.module.css'
 import { describeCategories } from '../lib/categories'
@@ -41,6 +51,8 @@ import { formatAge, formatBytes } from '../lib/format'
 import { href, navigate } from '../lib/router'
 import { SORT_LABELS, SORT_ORDERS, sortReleases, type SortOrder } from '../lib/sort'
 import { useNow } from '../lib/useNow'
+import { asideStyle } from '../lib/rowAside'
+import { useTruncated } from '../lib/useTruncated'
 import classes from './Search.module.css'
 
 type GrabState = { status: 'pending' } | { status: 'done' } | { status: 'failed'; message: string }
@@ -398,6 +410,15 @@ function ReleaseList({
   onLoadMore: () => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
+  // Here rather than in the rows, which unmount when scrolled out of view.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const toggleExpanded = useCallback((guid: string) => {
+    setExpanded((e) => {
+      const next = new Set(e)
+      if (!next.delete(guid)) next.add(guid)
+      return next
+    })
+  }, [])
   const [scrollMargin, setScrollMargin] = useState(0)
   useEffect(() => {
     setScrollMargin(listRef.current?.offsetTop ?? 0)
@@ -410,6 +431,14 @@ function ReleaseList({
     scrollMargin,
     getItemKey: (i) => releases[i]?.guid ?? 'footer',
   })
+  // A row that grows or shrinks moves the rows below it in the same frame; the virtualizer's own measuring (a
+  // ResizeObserver) would leave them a frame behind, drawn over by the grown row. (Its measureElement() returns the
+  // cached size outside of the observer, hence resizeItem().)
+  useLayoutEffect(() => {
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>('[data-index]') ?? []) {
+      virtualizer.resizeItem(Number(row.dataset.index), row.offsetHeight)
+    }
+  }, [expanded, virtualizer])
   const items = virtualizer.getVirtualItems()
   const last = items.at(-1)
 
@@ -450,8 +479,10 @@ function ReleaseList({
                 <ReleaseRow
                   release={release}
                   selected={selected.has(release.guid)}
+                  expanded={expanded.has(release.guid)}
                   grab={grabs.get(release.guid)}
                   onToggle={onToggle}
+                  onExpand={toggleExpanded}
                   now={now}
                 />
               ) : (
@@ -492,21 +523,30 @@ function ReleaseList({
 const ReleaseRow = memo(function ReleaseRow({
   release,
   selected,
+  expanded,
   grab,
   onToggle,
+  onExpand,
   now,
 }: {
   release: Release
   selected: boolean
+  expanded: boolean
   grab: GrabState | undefined
   onToggle: (guid: string) => void
+  onExpand: (guid: string) => void
   now: number
 }) {
+  const titleRef = useRef<HTMLDivElement>(null)
+  const truncated = useTruncated(titleRef, grab !== undefined)
   const age = formatAge(release.publishDate, now)
   const seeders = release.seeders ?? 0
   const id = `release-${release.guid}`
+  const showToggle = truncated || expanded
+  const asideItems =
+    Number(grab !== undefined) + Number(showToggle) + Number(release.infoUrl !== null)
   return (
-    <div className={ui.row} data-selected={selected}>
+    <div className={ui.row} data-selected={selected} style={asideStyle(asideItems)}>
       <label className={ui.rowMain} htmlFor={id}>
         <Checkbox
           id={id}
@@ -518,7 +558,10 @@ const ReleaseRow = memo(function ReleaseRow({
           aria-label={release.title}
         />
         <div className={ui.rowBody}>
-          <div className={ui.rowTitle}>{release.title}</div>
+          {asideItems > 0 && <div className={ui.rowSpace} />}
+          <div className={ui.rowTitle} ref={titleRef} data-expanded={expanded}>
+            {release.title}
+          </div>
           <div className={ui.rowMeta}>
             <span className={cx('mono', classes.size)}>{formatBytes(release.size)}</span>
             <span
@@ -539,7 +582,20 @@ const ReleaseRow = memo(function ReleaseRow({
         </div>
       </label>
       <div className={ui.rowAside}>
-        <GrabIndicator grab={grab} />
+        {grab !== undefined && (
+          <span className={ui.asideSlot}>
+            <GrabIndicator grab={grab} />
+          </span>
+        )}
+        {showToggle && (
+          <TitleToggle
+            expanded={expanded}
+            name={release.title}
+            onToggle={() => {
+              onExpand(release.guid)
+            }}
+          />
+        )}
         {release.infoUrl !== null && (
           <Tooltip label="Open on the indexer" openDelay={400}>
             <ActionIcon

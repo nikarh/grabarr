@@ -177,6 +177,7 @@ tasks:
 | Task | |
 | --- | --- |
 | `mise run dev` | The backend with `dev/config.toml`, and the Vite dev server at http://localhost:5173 |
+| `mise run dev:remote` | Only the Vite dev server, against the grabarr at `GRABARR_REMOTE` (e.g. `https://grabarr.example.com`) |
 | `mise run check` | Everything CI checks: formatting, clippy, oxlint, type check, tests, cargo-deny, generated files |
 | `mise run fmt` | Format Rust and TypeScript |
 | `mise run bindings` | Regenerate the TypeScript API types after changing `src/api.rs` |
