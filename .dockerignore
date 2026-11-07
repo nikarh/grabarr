@@ -1,0 +1,11 @@
+*
+!Cargo.toml
+!Cargo.lock
+!build.rs
+!.cargo
+!.sqlx
+!migrations
+!src
+!web
+web/node_modules
+web/dist
