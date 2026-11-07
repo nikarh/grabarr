@@ -22,8 +22,7 @@ import {
   IconSearch,
   IconTrash,
 } from '@tabler/icons-react'
-import { useWindowVirtualizer } from '@tanstack/react-virtual'
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { Torrent } from '../api/generated/model'
 import type { TorrentsState } from '../api/hooks'
@@ -34,6 +33,7 @@ import { cx } from '../lib/cx'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { href } from '../lib/router'
 import { isActive, isDone, statusColor } from '../lib/status'
+import { useListVirtualizer } from '../lib/useListVirtualizer'
 import classes from './Downloads.module.css'
 
 type Filter = 'all' | 'active' | 'done'
@@ -306,16 +306,10 @@ function TorrentList({
   onToggle: (hash: string) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const [scrollMargin, setScrollMargin] = useState(0)
-  useEffect(() => {
-    setScrollMargin(listRef.current?.offsetTop ?? 0)
-  }, [])
-
-  const virtualizer = useWindowVirtualizer({
+  const { virtualizer, scrollMargin } = useListVirtualizer({
+    listRef,
     count: torrents.length,
-    estimateSize: () => 92,
-    overscan: 10,
-    scrollMargin,
+    estimateSize: 92,
     getItemKey: (i) => torrents[i]?.hash ?? i,
   })
 

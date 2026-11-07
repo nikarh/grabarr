@@ -22,9 +22,11 @@
   --status-queued: light-dark(#6d4fd6, #a998ff);
 }
 
-/* Space for the scrollbar is always reserved, so the layout doesn't shift between short and long pages. */
-html {
-  scrollbar-gutter: stable;
+/* Only the content area scrolls (see Shell.module.css), with its scrollbar gutter always reserved. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
 }
 
 :root[data-mantine-color-scheme='light'] {

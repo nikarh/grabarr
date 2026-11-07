@@ -1,8 +1,9 @@
 import { IconDownload, IconSearch, IconSettings } from '@tabler/icons-react'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { useConnectionState } from '../api/hooks'
 import { href, type Screen } from '../lib/router'
+import { ScrollerContext } from '../lib/scroller'
 import { cx } from '../lib/cx'
 import { LogoMark } from './Logo'
 import classes from './Shell.module.css'
@@ -29,8 +30,13 @@ export function Shell({
   children: ReactNode
 }) {
   const connection = useConnectionState()
+  const [scroller, setScroller] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    scroller?.scrollTo({ top: 0 })
+  }, [scroller, screen])
+
   return (
-    <>
+    <div className={classes.app}>
       <header className={classes.header}>
         <div className={classes.headerInner}>
           <a className={classes.brand} href={href('search')}>
@@ -59,7 +65,11 @@ export function Shell({
           </div>
         </div>
       </header>
-      <main className={classes.main}>{children}</main>
+      <main className={classes.main} ref={setScroller}>
+        <div className={classes.content}>
+          <ScrollerContext value={scroller}>{children}</ScrollerContext>
+        </div>
+      </main>
       <nav className={classes.tabbar} aria-label="Main">
         {TABS.map(({ screen: s, label, icon: Icon }) => (
           <a
@@ -78,6 +88,6 @@ export function Shell({
           </a>
         ))}
       </nav>
-    </>
+    </div>
   )
 }
