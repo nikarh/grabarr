@@ -20,6 +20,14 @@ description = "Run the backend (with dev/config.toml) and the Vite dev server at
 depends = ["web:install"]
 run = "scripts/dev.sh"
 
+[tasks."dev:remote"]
+description = "The Vite dev server at http://localhost:5173, against the grabarr at $GRABARR_REMOTE"
+depends = ["web:install"]
+run = '''
+test -n "${GRABARR_REMOTE:-}" || { echo "Set GRABARR_REMOTE to the URL of a running grabarr" >&2; exit 1; }
+npm --prefix web run dev
+'''
+
 [tasks.fmt]
 description = "Format Rust and frontend code"
 depends = ["web:install"]
