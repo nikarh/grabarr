@@ -68,3 +68,8 @@ body::before {
   position: relative;
   z-index: 1;
 }
+
+/* Upstream errors can hold long unbroken tokens (URLs, exception names). */
+.mantine-Alert-message {
+  overflow-wrap: anywhere;
+}

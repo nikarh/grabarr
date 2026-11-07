@@ -150,7 +150,7 @@ impl Prowlarr {
             let body = response.text().await.unwrap_or_default();
             return Err(Error::Status {
                 status,
-                body: truncate(body, 300),
+                body: truncate(error_message(body), 300),
             });
         }
         Ok(response.json().await?)
@@ -258,6 +258,18 @@ fn qbittorrent_settings(fields: &[Field]) -> QbittorrentSettings {
     }
 }
 
+/// Prowlarr answers errors with `{"message": ..., "description": <stack trace>}`: only the message is of use.
+fn error_message(body: String) -> String {
+    #[derive(Deserialize)]
+    struct Body {
+        message: String,
+    }
+    match serde_json::from_str::<Body>(&body) {
+        Ok(b) if !b.message.trim().is_empty() => b.message,
+        _ => body,
+    }
+}
+
 pub fn truncate(mut s: String, max: usize) -> String {
     if s.len() > max {
         let mut end = max;
@@ -312,6 +324,18 @@ mod tests {
         assert_eq!(api::Release::from(&release).info_url, None);
         release.info_url = Some("https://example.org/t/1".into());
         assert!(api::Release::from(&release).info_url.is_some());
+    }
+
+    #[test]
+    fn error_messages() {
+        assert_eq!(
+            error_message(
+                r#"{"message":"Search failed due to all selected indexers being unavailable","description":"NzbDrone..."}"#
+                    .into()
+            ),
+            "Search failed due to all selected indexers being unavailable"
+        );
+        assert_eq!(error_message("Unauthorized".into()), "Unauthorized");
     }
 
     #[test]

@@ -256,9 +256,10 @@ export function SearchScreen({ query, sort }: { query: string; sort: SortOrder }
         </EmptyState>
       ) : search.isError && releases.length === 0 ? (
         <Alert color="red" variant="light" title="Search failed" icon={<IconAlertTriangle />}>
-          {search.error.message}
+          <Text size="sm">{search.error.message}</Text>
           <Button
             mt="sm"
+            display="block"
             size="xs"
             variant="light"
             color="red"
