@@ -84,7 +84,7 @@ fn main() -> ExitCode {
         Ok(Parsed::Run(args)) => args,
         Ok(Parsed::Help) => return write_out(HELP),
         Ok(Parsed::Version) => {
-            return write_out(concat!("grabarr ", env!("CARGO_PKG_VERSION"), "\n"));
+            return write_out(concat!("grabarr ", env!("GRABARR_VERSION"), "\n"));
         }
         Err(e) => return fail(&format!("{e}\n\n{HELP}")),
     };
@@ -201,7 +201,7 @@ async fn run(config: Config) -> Result<(), RunError> {
     let listener = tokio::net::TcpListener::bind(listen)
         .await
         .map_err(|e| RunError::Listen(listen, e))?;
-    tracing::info!(%listen, version = env!("CARGO_PKG_VERSION"), "Listening");
+    tracing::info!(%listen, version = env!("GRABARR_VERSION"), "Listening");
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown())
         .await

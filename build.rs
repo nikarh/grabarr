@@ -1,10 +1,16 @@
-//! Embeds the built frontend (`web/dist`) into the binary. Without it, the binary still builds and serves a
+//! Sets `GRABARR_VERSION` (the package version plus `GRABARR_VERSION_SUFFIX`, e.g. `-dev+abc1234` for builds of main)
+//! and embeds the built frontend (`web/dist`) into the binary. Without it, the binary still builds and serves a
 //! placeholder page, so that the backend can be developed without node.
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 fn main() {
+    println!("cargo::rerun-if-env-changed=GRABARR_VERSION_SUFFIX");
+    let suffix = std::env::var("GRABARR_VERSION_SUFFIX").unwrap_or_default();
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_default();
+    println!("cargo::rustc-env=GRABARR_VERSION={version}{suffix}");
+
     let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap_or_default());
     let dist = root.join("web").join("dist");
     println!("cargo::rerun-if-changed={}", dist.display());

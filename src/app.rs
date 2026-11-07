@@ -70,12 +70,12 @@ pub struct App {
 impl App {
     pub fn new(config: Config, db: Db) -> Result<Arc<Self>, reqwest::Error> {
         let http = reqwest::Client::builder()
-            .user_agent(concat!("grabarr/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("grabarr/", env!("GRABARR_VERSION")))
             .connect_timeout(Duration::from_secs(10))
             .timeout(config.prowlarr.timeout)
             .build()?;
         let downloads = reqwest::Client::builder()
-            .user_agent(concat!("grabarr/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("grabarr/", env!("GRABARR_VERSION")))
             .connect_timeout(Duration::from_secs(10))
             .timeout(config.prowlarr.timeout)
             .redirect(reqwest::redirect::Policy::none())
