@@ -82,4 +82,4 @@ CARGO="$(command -v cargo)" cargo-sqlx sqlx prepare -- --all-targets
 
 [tasks.changelog]
 description = "Regenerate CHANGELOG.md from the commits"
-run = "git cliff -o CHANGELOG.md"
+run = "git cliff --offline -o CHANGELOG.md"

@@ -21,7 +21,8 @@ about 10 MB that runs as `nobody`, on a read-only filesystem, without any capabi
 ```yaml
 services:
   grabarr:
-    image: ghcr.io/nikarh/grabarr:latest
+    # Built by CI and pushed to Docker Hub (see .github/workflows/ci.yml); or build it: `docker build -t grabarr .`
+    image: <dockerhub-user>/grabarr:latest
     restart: unless-stopped
     # Everything below is optional hardening; the image works with all of it.
     read_only: true
@@ -165,6 +166,13 @@ tasks:
 For `mise run dev`, create `dev/config.toml` (the `dev/` directory is ignored by git) from the example, with
 `database.path = "dev/grabarr.db"`, `server.listen = "127.0.0.1:8080"`, and
 `server.allowed_origins = ["http://localhost:5173"]`.
+
+CI (`.github/workflows/ci.yml`) runs `mise run check` on every push and pull request. Pushes to `main` and `v*` tags
+then build the amd64 image, smoke-test it read-only without capabilities, and push it to Docker Hub (`main`,
+`sha-<commit>`; `X.Y.Z`, `X.Y`, `latest` for tags). It needs the repository secrets `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN`, and optionally the variable `DOCKERHUB_IMAGE` (default `<username>/grabarr`). It's built to spend
+few runner minutes: one job for the checks, caches for Rust and npm, docs-only changes skipped, and the image wraps a
+binary compiled with the cache rather than compiling inside Docker.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org); the changelog is generated from them by
 [git-cliff](https://git-cliff.org).
