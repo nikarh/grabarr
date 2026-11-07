@@ -9,3 +9,5 @@
 !web
 web/node_modules
 web/dist
+!Dockerfile.ci
+!ci-rootfs

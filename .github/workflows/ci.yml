@@ -1,0 +1,125 @@
+name: CI
+
+# Built to spend few runner minutes: one job checks everything, with the Rust and npm caches. The image is built only
+# from main and tags, once the checks pass, from a binary compiled outside Docker, where rust-cache keeps it
+# incremental (inside Docker it would compile from scratch on every run).
+#
+# Pushes to Docker Hub: set the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token with
+# read & write), and optionally the variable DOCKERHUB_IMAGE (default: <username>/grabarr).
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore: ["**.md", "LICENSE-*", "cliff.toml"]
+  pull_request:
+    paths-ignore: ["**.md", "LICENSE-*", "cliff.toml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check:
+    name: lint, tests, dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The toolchain (with clippy and rustfmt) comes from rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # sqlx-cli is only for refreshing .sqlx/ by hand: not installed here.
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: node cargo-deny
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('web/package-lock.json') }}
+      # fmt, clippy, oxfmt, oxlint, tsc, tests, cargo-deny, and that the generated TypeScript types and .sqlx/ are
+      # committed up to date.
+      - run: mise run check
+
+  # amd64 only. Tags: `main` and `sha-<commit>` from main; `X.Y.Z`, `X.Y` and `latest` from tags.
+  image:
+    name: image
+    needs: [check]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET: x86_64-unknown-linux-musl
+      IMAGE: ${{ vars.DOCKERHUB_IMAGE || format('{0}/grabarr', secrets.DOCKERHUB_USERNAME) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          sudo apt-get install -y --no-install-recommends musl-tools
+          rustup toolchain install
+          rustup target add "$TARGET"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: musl
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: node
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('web/package-lock.json') }}
+      - name: Build the static binary with the frontend embedded
+        run: |
+          set -euo pipefail
+          mise run web:build
+          cargo build --locked --release --target "$TARGET"
+          root=ci-rootfs
+          mkdir -p "$root/etc/ssl/certs" "$root/config"
+          install -m 755 "target/$TARGET/release/grabarr" "$root/grabarr"
+          cp /etc/ssl/certs/ca-certificates.crt "$root/etc/ssl/certs/"
+          # A new named volume copies this mode, so any uid can create the database.
+          mkdir -m 1777 "$root/data"
+      - name: Build the image
+        run: docker build -f Dockerfile.ci -t grabarr:ci .
+      - name: Runs read-only, without capabilities, as nobody
+        run: |
+          set -euo pipefail
+          mkdir -p ci && printf '[prowlarr]\nurl = "http://127.0.0.1:9"\napi_key = "x"\n' > ci/config.toml
+          docker run -d --name grabarr --read-only --cap-drop=ALL --security-opt no-new-privileges \
+            -v data:/data -v "$PWD/ci/config.toml:/config/config.toml:ro" grabarr:ci
+          for _ in $(seq 20); do
+            if docker exec grabarr /grabarr healthcheck; then exit 0; fi
+            sleep 0.5
+          done
+          docker logs grabarr
+          exit 1
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [[ -n $tag ]] || continue
+            docker tag grabarr:ci "$tag"
+            docker push "$tag"
+          done <<<"$TAGS"
