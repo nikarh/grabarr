@@ -134,6 +134,25 @@
   background: color-mix(in srgb, light-dark(#ffffff, var(--mantine-color-dark-7)) 88%, transparent);
   backdrop-filter: blur(16px) saturate(150%);
   border-top: 1px solid var(--hairline);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Its background runs on below the screen's edge: where the browser draws it a few pixels too high while its toolbar
+   moves, nothing shows through underneath. */
+.tabbar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: inherit;
+}
+
+/* Hidden while scrolling down (Firefox for Android only, see useTabBarAutoHide). */
+/* Further than its height, so that it doesn't peek out when drawn too high. */
+.tabbar[data-hidden='true'] {
+  transform: translateY(calc(100% + 24px));
 }
 
 .tab {
