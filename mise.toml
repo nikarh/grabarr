@@ -41,9 +41,8 @@ description = "Run the Rust tests (which also regenerate the frontend API types)
 run = "cargo test --locked"
 
 [tasks.bindings]
-description = "Regenerate web/src/api/generated from the Rust API types, and format them"
-depends = ["web:install"]
-run = ["cargo test --locked export_bindings", "npm --prefix web exec oxfmt -- src/api/generated"]
+description = "Regenerate web/src/api/generated from the Rust API types"
+run = "cargo test --locked export_bindings"
 
 [tasks.deny]
 description = "Audit dependencies: advisories, licenses, duplicates, sources"

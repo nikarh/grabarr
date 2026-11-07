@@ -1,0 +1,64 @@
+:root {
+  --tabbar-height: 64px;
+  --header-height: 56px;
+  --content-width: 920px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hairline: light-dark(rgb(15 20 25 / 0.08), rgb(255 255 255 / 0.065));
+  --surface: light-dark(#ffffff, var(--mantine-color-dark-7));
+  --surface-raised: light-dark(#ffffff, var(--mantine-color-dark-6));
+  --ink-dim: light-dark(#5b626c, var(--mantine-color-dark-2));
+  --ink-faint: light-dark(#8a919b, var(--mantine-color-dark-3));
+  --row-hover: light-dark(rgb(15 20 25 / 0.035), rgb(255 255 255 / 0.03));
+  --row-selected: light-dark(
+    rgb(117 148 17 / 0.1),
+    color-mix(in srgb, var(--mantine-color-signal-4) 9%, transparent)
+  );
+  --status-active: light-dark(#0b7fc4, #5cc8ff);
+  --status-good: light-dark(var(--mantine-color-signal-8), var(--mantine-color-signal-4));
+  --status-warn: light-dark(#b26b00, #ffb547);
+  --status-bad: light-dark(#d02f2f, #ff6b6b);
+  --status-muted: light-dark(#7a818b, #6c737d);
+  --status-queued: light-dark(#6d4fd6, #a998ff);
+}
+
+:root[data-mantine-color-scheme='light'] {
+  color-scheme: light;
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  background: light-dark(#f4f5f2, var(--mantine-color-dark-8));
+  -webkit-tap-highlight-color: transparent;
+  font-feature-settings: 'ss01', 'cv11';
+  text-rendering: optimizeLegibility;
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* A faint grain over the background keeps big dark areas from looking flat. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      900px 420px at 85% -10%,
+      color-mix(in srgb, var(--mantine-color-signal-4) 7%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(700px 380px at -10% 110%, rgb(92 200 255 / 0.05), transparent 70%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}

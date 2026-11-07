@@ -1,0 +1,580 @@
+import {
+  ActionIcon,
+  Alert,
+  Anchor,
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
+import {
+  IconAlertTriangle,
+  IconArrowDown,
+  IconArrowUp,
+  IconCheck,
+  IconExternalLink,
+  IconFilter,
+  IconSearch,
+  IconX,
+} from '@tabler/icons-react'
+import { useWindowVirtualizer } from '@tanstack/react-virtual'
+import { memo, useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
+
+import type { Indexer, Release } from '../api/generated/model'
+import { useIndexers, useSearch, useSettings } from '../api/hooks'
+import { rpc, RpcError } from '../api/rpc'
+import { ActionBar, EmptyState, Sheet } from '../components/ui'
+import ui from '../components/ui.module.css'
+import { cx } from '../lib/cx'
+import { formatAge, formatBytes } from '../lib/format'
+import { href, navigate } from '../lib/router'
+import { useNow } from '../lib/useNow'
+import classes from './Search.module.css'
+
+type GrabState = { status: 'pending' } | { status: 'done' } | { status: 'failed'; message: string }
+
+export function SearchScreen({ query }: { query: string }) {
+  const [input, setInput] = useState(query)
+  // undefined: the default indexers from the settings.
+  const [indexerIds, setIndexerIds] = useState<number[] | undefined>(undefined)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [grabs, setGrabs] = useState<ReadonlyMap<string, GrabState>>(new Map())
+
+  const settings = useSettings()
+  const indexers = useIndexers()
+  const search = useSearch(query, indexerIds)
+
+  // A new search (typed here, or from history) resets the input and the selection.
+  const [shownQuery, setShownQuery] = useState(query)
+  if (shownQuery !== query) {
+    setShownQuery(query)
+    setInput(query)
+    setSelected(new Set())
+  }
+
+  const releases = useMemo(() => {
+    const seen = new Set<string>()
+    const all: Release[] = []
+    for (const page of search.data?.pages ?? []) {
+      for (const r of page.releases) {
+        if (seen.has(r.guid)) continue
+        seen.add(r.guid)
+        all.push(r)
+      }
+    }
+    return all
+  }, [search.data])
+
+  const configured =
+    settings.data?.downloadClientId != null && (settings.data.category ?? '') !== ''
+
+  const submit = (e: SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const q = input.trim()
+    if (q !== '') navigate('search', { q })
+  }
+
+  const toggle = (guid: string) => {
+    setSelected((s) => {
+      const next = new Set(s)
+      if (!next.delete(guid)) next.add(guid)
+      return next
+    })
+  }
+
+  const grab = async () => {
+    const guids = [...selected].filter((g) => grabs.get(g)?.status !== 'done')
+    if (guids.length === 0) return
+    setGrabs((m) => new Map([...m, ...guids.map((g) => [g, { status: 'pending' }] as const)]))
+    // All grabs leave in one frame; each row updates as its own answer arrives.
+    const outcomes = await Promise.all(
+      guids.map(async (guid) => {
+        try {
+          await rpc.call('grab', { guid })
+          setGrabs((m) => new Map(m).set(guid, { status: 'done' }))
+          return true
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e)
+          setGrabs((m) => new Map(m).set(guid, { status: 'failed', message }))
+          return false
+        }
+      }),
+    )
+    const ok = outcomes.filter(Boolean).length
+    const failed = outcomes.length - ok
+    // What was sent leaves the selection; what failed stays, to retry.
+    const sent = new Set(guids.filter((_, i) => outcomes[i] === true))
+    setSelected((s) => new Set([...s].filter((g) => !sent.has(g))))
+    notifications.show({
+      color: failed === 0 ? 'signal' : ok === 0 ? 'red' : 'yellow',
+      icon: failed === 0 ? <IconCheck size={18} /> : <IconAlertTriangle size={18} />,
+      title:
+        failed === 0
+          ? `Sent ${String(ok)} to qBittorrent`
+          : `${String(ok)} sent, ${String(failed)} failed`,
+      message:
+        failed === 0 ? (
+          <Anchor href={href('downloads')} size="sm">
+            Watch them in Downloads
+          </Anchor>
+        ) : (
+          'The failed rows say why.'
+        ),
+    })
+  }
+
+  const indexerLabel = describeIndexers(indexerIds, settings.data?.indexerIds, indexers.data)
+
+  return (
+    <Stack gap="md">
+      <form onSubmit={submit} className={classes.searchForm}>
+        <TextInput
+          className={classes.searchInput}
+          size="md"
+          radius="md"
+          placeholder="Search releases"
+          aria-label="Search releases"
+          value={input}
+          onChange={(e) => {
+            setInput(e.currentTarget.value)
+          }}
+          leftSection={<IconSearch size={18} stroke={1.8} />}
+          rightSection={
+            input !== '' && (
+              <ActionIcon
+                aria-label="Clear"
+                onClick={() => {
+                  setInput('')
+                }}
+              >
+                <IconX size={16} />
+              </ActionIcon>
+            )
+          }
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+        <Button type="submit" size="md" className={classes.searchButton}>
+          Search
+        </Button>
+      </form>
+
+      <Group gap="xs" justify="space-between" wrap="nowrap">
+        <UnstyledButton
+          className={classes.scope}
+          onClick={() => {
+            setPickerOpen(true)
+          }}
+          data-custom={indexerIds !== undefined}
+        >
+          <IconFilter size={14} stroke={2} />
+          <span className={classes.scopeLabel}>{indexerLabel}</span>
+        </UnstyledButton>
+        {releases.length > 0 && (
+          <Text size="xs" c="dimmed" className="mono">
+            {releases.length} {search.hasNextPage ? 'loaded' : 'results'}
+          </Text>
+        )}
+      </Group>
+
+      {settings.isSuccess && !configured && (
+        <Alert
+          variant="light"
+          color="yellow"
+          icon={<IconAlertTriangle size={18} />}
+          title="Not ready to grab"
+        >
+          Choose a download client and a category in{' '}
+          <Anchor href={href('settings')} inherit>
+            Settings
+          </Anchor>{' '}
+          first.
+        </Alert>
+      )}
+
+      {query === '' ? (
+        <EmptyState icon={<IconSearch size={24} stroke={1.6} />} title="Find something to grab">
+          <Text size="sm" maw={320}>
+            Searches {indexerLabel.toLowerCase()} through Prowlarr. Results load as you scroll.
+          </Text>
+        </EmptyState>
+      ) : search.isPending ? (
+        <EmptyState icon={<Loader size={22} color="signal" />} title={`Searching for “${query}”`}>
+          <Text size="sm">Indexers can take a few seconds.</Text>
+        </EmptyState>
+      ) : search.isError && releases.length === 0 ? (
+        <Alert color="red" variant="light" title="Search failed" icon={<IconAlertTriangle />}>
+          {search.error.message}
+          <Button
+            mt="sm"
+            size="xs"
+            variant="light"
+            color="red"
+            onClick={() => {
+              void search.refetch()
+            }}
+          >
+            Try again
+          </Button>
+        </Alert>
+      ) : releases.length === 0 ? (
+        <EmptyState icon={<IconSearch size={24} stroke={1.6} />} title="Nothing found">
+          <Text size="sm">Try other words, or other indexers.</Text>
+        </EmptyState>
+      ) : (
+        <ReleaseList
+          releases={releases}
+          selected={selected}
+          grabs={grabs}
+          onToggle={toggle}
+          hasMore={search.hasNextPage}
+          loadingMore={search.isFetchingNextPage}
+          error={search.isError ? search.error : null}
+          onLoadMore={() => {
+            void search.fetchNextPage()
+          }}
+        />
+      )}
+
+      {selected.size > 0 && (
+        <ActionBar label={`${String(selected.size)} selected`}>
+          <Button
+            variant="subtle"
+            color="gray"
+            onClick={() => {
+              setSelected(new Set())
+            }}
+          >
+            Clear
+          </Button>
+          <Button
+            onClick={() => {
+              void grab()
+            }}
+            disabled={!configured}
+            loading={[...selected].some((g) => grabs.get(g)?.status === 'pending')}
+          >
+            Grab
+          </Button>
+        </ActionBar>
+      )}
+
+      <IndexerPicker
+        opened={pickerOpen}
+        onClose={() => {
+          setPickerOpen(false)
+        }}
+        indexers={indexers.data ?? []}
+        defaults={settings.data?.indexerIds ?? []}
+        value={indexerIds}
+        onChange={setIndexerIds}
+      />
+    </Stack>
+  )
+}
+
+function describeIndexers(
+  override: number[] | undefined,
+  defaults: number[] | undefined,
+  indexers: Indexer[] | undefined,
+): string {
+  const ids = override ?? defaults ?? []
+  const prefix = override === undefined ? 'Default: ' : ''
+  if (ids.length === 0) return `${prefix}all indexers`
+  const names = ids.map((id) => indexers?.find((i) => i.id === id)?.name ?? `#${String(id)}`)
+  if (names.length <= 2) return prefix + names.join(', ')
+  return `${prefix}${String(names.length)} indexers`
+}
+
+const ESTIMATED_ROW = 78
+
+function ReleaseList({
+  releases,
+  selected,
+  grabs,
+  onToggle,
+  hasMore,
+  loadingMore,
+  error,
+  onLoadMore,
+}: {
+  releases: Release[]
+  selected: ReadonlySet<string>
+  grabs: ReadonlyMap<string, GrabState>
+  onToggle: (guid: string) => void
+  hasMore: boolean
+  loadingMore: boolean
+  error: RpcError | null
+  onLoadMore: () => void
+}) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+  useEffect(() => {
+    setScrollMargin(listRef.current?.offsetTop ?? 0)
+  }, [])
+
+  const virtualizer = useWindowVirtualizer({
+    count: releases.length + 1,
+    estimateSize: () => ESTIMATED_ROW,
+    overscan: 10,
+    scrollMargin,
+    getItemKey: (i) => releases[i]?.guid ?? 'footer',
+  })
+  const items = virtualizer.getVirtualItems()
+  const last = items.at(-1)
+
+  // Load the next page as the end comes into view.
+  useEffect(() => {
+    if (last && last.index >= releases.length - 5 && hasMore && !loadingMore && error === null) {
+      onLoadMore()
+    }
+  }, [last, releases.length, hasMore, loadingMore, error, onLoadMore])
+
+  const now = useNow(60_000)
+  return (
+    <div ref={listRef} className={ui.list}>
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {items.map((item) => {
+          const release = releases[item.index]
+          return (
+            <div
+              key={item.key}
+              data-index={item.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${String(item.start - scrollMargin)}px)`,
+              }}
+            >
+              {release ? (
+                <ReleaseRow
+                  release={release}
+                  selected={selected.has(release.guid)}
+                  grab={grabs.get(release.guid)}
+                  onToggle={onToggle}
+                  now={now}
+                />
+              ) : (
+                <div className={ui.listFooter}>
+                  {loadingMore ? (
+                    <>
+                      <Loader size="xs" color="signal" /> Loading more
+                    </>
+                  ) : error !== null ? (
+                    <>
+                      <span>{error.message}</span>
+                      <Button size="compact-xs" variant="light" onClick={onLoadMore}>
+                        Retry
+                      </Button>
+                    </>
+                  ) : hasMore ? (
+                    ''
+                  ) : (
+                    'End of results'
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const ReleaseRow = memo(function ReleaseRow({
+  release,
+  selected,
+  grab,
+  onToggle,
+  now,
+}: {
+  release: Release
+  selected: boolean
+  grab: GrabState | undefined
+  onToggle: (guid: string) => void
+  now: number
+}) {
+  const age = formatAge(release.publishDate, now)
+  const seeders = release.seeders ?? 0
+  const id = `release-${release.guid}`
+  return (
+    <div className={ui.row} data-selected={selected}>
+      <label className={ui.rowMain} htmlFor={id}>
+        <Checkbox
+          id={id}
+          className={ui.rowCheck}
+          checked={selected}
+          onChange={() => {
+            onToggle(release.guid)
+          }}
+          aria-label={release.title}
+        />
+        <div className={ui.rowBody}>
+          <div className={ui.rowTitle}>{release.title}</div>
+          <div className={ui.rowMeta}>
+            <span className={cx('mono', classes.size)}>{formatBytes(release.size)}</span>
+            <span
+              className={cx('mono', classes.peers)}
+              data-health={seeders >= 10 ? 'good' : seeders > 0 ? 'low' : 'none'}
+              title="Seeders"
+            >
+              <IconArrowUp size={12} stroke={2.4} />
+              {release.seeders ?? '–'}
+            </span>
+            <span className={cx('mono', classes.peers)} title="Leechers">
+              <IconArrowDown size={12} stroke={2.4} />
+              {release.leechers ?? '–'}
+            </span>
+            {age !== null && <span className="mono">{age}</span>}
+            <span className={classes.indexer}>{release.indexer}</span>
+          </div>
+        </div>
+      </label>
+      <div className={ui.rowAside}>
+        <GrabIndicator grab={grab} />
+        {release.infoUrl !== null && (
+          <Tooltip label="Open on the indexer" openDelay={400}>
+            <ActionIcon
+              component="a"
+              href={release.infoUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              size="lg"
+              aria-label={`Open ${release.title} on ${release.indexer}`}
+            >
+              <IconExternalLink size={18} stroke={1.7} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+      </div>
+    </div>
+  )
+})
+
+function GrabIndicator({ grab }: { grab: GrabState | undefined }) {
+  if (grab === undefined) return null
+  switch (grab.status) {
+    case 'pending':
+      return <Loader size={16} color="signal" aria-label="Grabbing" />
+    case 'done':
+      return (
+        <Tooltip label="Sent to qBittorrent">
+          <span className={classes.grabbed} role="img" aria-label="Sent to qBittorrent">
+            <IconCheck size={16} stroke={2.6} />
+          </span>
+        </Tooltip>
+      )
+    case 'failed':
+      return (
+        <Tooltip label={grab.message} multiline w={260}>
+          <span className={classes.grabFailed} role="img" aria-label={grab.message}>
+            <IconAlertTriangle size={16} stroke={2} />
+          </span>
+        </Tooltip>
+      )
+  }
+}
+
+function IndexerPicker({
+  opened,
+  onClose,
+  ...rest
+}: {
+  opened: boolean
+  onClose: () => void
+  indexers: Indexer[]
+  defaults: number[]
+  value: number[] | undefined
+  onChange: (ids: number[] | undefined) => void
+}) {
+  return (
+    <Sheet opened={opened} onClose={onClose} title="Indexers for this search">
+      {/* Remounted on every opening, to start from the current choice. */}
+      <IndexerPickerBody key={String(opened)} onClose={onClose} {...rest} />
+    </Sheet>
+  )
+}
+
+function IndexerPickerBody({
+  onClose,
+  indexers,
+  defaults,
+  value,
+  onChange,
+}: {
+  onClose: () => void
+  indexers: Indexer[]
+  defaults: number[]
+  value: number[] | undefined
+  onChange: (ids: number[] | undefined) => void
+}) {
+  const [draft, setDraft] = useState<string[]>(() => (value ?? defaults).map(String))
+
+  return (
+    <Stack gap="md">
+      <Text size="sm" c="dimmed">
+        Only for searches from now on in this tab. The defaults are set in Settings.
+      </Text>
+      <Checkbox.Group value={draft} onChange={setDraft}>
+        <Stack gap={0} className={classes.indexerList}>
+          {indexers.map((indexer) => (
+            <Checkbox.Card
+              key={indexer.id}
+              value={String(indexer.id)}
+              className={classes.indexerOption}
+              radius={0}
+            >
+              <Group wrap="nowrap" gap="sm">
+                <Checkbox.Indicator />
+                <Text size="sm" fw={500} style={{ flex: 1 }}>
+                  {indexer.name}
+                </Text>
+                {!indexer.enabled && (
+                  <Text size="xs" c="dimmed">
+                    disabled
+                  </Text>
+                )}
+              </Group>
+            </Checkbox.Card>
+          ))}
+        </Stack>
+      </Checkbox.Group>
+      <Text size="xs" c="dimmed">
+        None selected searches every indexer.
+      </Text>
+      <Group justify="space-between">
+        <Button
+          variant="subtle"
+          color="gray"
+          onClick={() => {
+            onChange(undefined)
+            onClose()
+          }}
+        >
+          Use defaults
+        </Button>
+        <Button
+          onClick={() => {
+            onChange(draft.map(Number))
+            onClose()
+          }}
+        >
+          Apply
+        </Button>
+      </Group>
+    </Stack>
+  )
+}

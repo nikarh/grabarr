@@ -1,0 +1,140 @@
+.searchForm {
+  display: flex;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+}
+
+.searchInput input {
+  background: var(--surface-raised);
+  border-color: var(--hairline);
+  font-size: 16px;
+}
+
+.searchInput input:focus {
+  border-color: var(--mantine-color-signal-5);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-signal-4) 18%, transparent);
+}
+
+.searchButton {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .searchButton {
+    display: block;
+  }
+}
+
+.scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink-dim);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.scope:hover {
+  color: var(--mantine-color-text);
+}
+
+.scope[data-custom='true'] {
+  color: var(--mantine-color-text);
+  border-color: color-mix(in srgb, var(--mantine-color-signal-4) 55%, transparent);
+  background: color-mix(in srgb, var(--mantine-color-signal-4) 10%, var(--surface));
+}
+
+.scopeLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.size {
+  color: var(--mantine-color-text);
+  font-weight: 500;
+}
+
+.peers {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.peers[data-health='good'] {
+  color: var(--status-good);
+}
+
+.peers[data-health='low'] {
+  color: var(--status-warn);
+}
+
+.peers[data-health='none'] {
+  color: var(--status-bad);
+}
+
+.indexer {
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 550;
+  background: light-dark(rgb(15 20 25 / 0.05), rgb(255 255 255 / 0.06));
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grabbed,
+.grabFailed {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+
+.grabbed {
+  color: #0e1014;
+  background: var(--mantine-color-signal-4);
+}
+
+.grabFailed {
+  color: var(--status-bad);
+  background: color-mix(in srgb, var(--status-bad) 14%, transparent);
+}
+
+.indexerList {
+  border: 1px solid var(--hairline);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+
+.indexerOption {
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
+}
+
+.indexerOption:last-child {
+  border-bottom: 0;
+}
+
+.indexerOption[data-checked] {
+  background: var(--row-selected);
+}
