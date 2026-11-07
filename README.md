@@ -4,7 +4,7 @@ A small, mobile-first web UI for one job: search [Prowlarr](https://prowlarr.com
 qBittorrent, and watch it download.
 
 - **Search** the default indexers and categories, or others for one search. Results load as you scroll (no page
-  numbers, nothing to lose by going back). Each result links to its page on the indexer.
+  numbers, nothing to lose by going back), and sort by age or size. Each result links to its page on the indexer.
 - **Grab** one or many results at once. They go to the default download client, with the default category.
 - **Downloads** shows every torrent of that category live: status, progress, speed, ETA. Torrents can be deleted from
   here, files included.
@@ -162,6 +162,9 @@ in [`src/api.rs`](src/api.rs), from which the TypeScript types in `web/src/api/g
 
 `indexerIds` and `categories` left out mean the defaults from the settings; an empty list means all of them. A parent
 category (`2000`, Movies) includes its subcategories (`2040`, Movies/HD).
+
+Sorting happens in the UI: Prowlarr can't sort, so it applies to the results loaded so far. While sorted, scrolling
+to the end doesn't load more on its own (new results would be sorted in above the reader); a button does.
 
 Grabs name a release by the `guid` of a recent search, and the server downloads it through the link Prowlarr gave:
 clients can't make the server fetch arbitrary URLs.

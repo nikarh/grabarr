@@ -6,6 +6,7 @@ import {
   Checkbox,
   Group,
   Loader,
+  Menu,
   Stack,
   Text,
   TextInput,
@@ -17,6 +18,7 @@ import {
   IconAlertTriangle,
   IconArrowDown,
   IconArrowUp,
+  IconArrowsSort,
   IconCategory,
   IconCheck,
   IconExternalLink,
@@ -37,12 +39,13 @@ import { describeCategories } from '../lib/categories'
 import { cx } from '../lib/cx'
 import { formatAge, formatBytes } from '../lib/format'
 import { href, navigate } from '../lib/router'
+import { SORT_LABELS, SORT_ORDERS, sortReleases, type SortOrder } from '../lib/sort'
 import { useNow } from '../lib/useNow'
 import classes from './Search.module.css'
 
 type GrabState = { status: 'pending' } | { status: 'done' } | { status: 'failed'; message: string }
 
-export function SearchScreen({ query }: { query: string }) {
+export function SearchScreen({ query, sort }: { query: string; sort: SortOrder }) {
   const [input, setInput] = useState(query)
   // undefined: the defaults from the settings.
   const [indexerIds, setIndexerIds] = useState<number[] | undefined>(undefined)
@@ -76,6 +79,7 @@ export function SearchScreen({ query }: { query: string }) {
     }
     return all
   }, [search.data])
+  const sorted = useMemo(() => sortReleases(releases, sort), [releases, sort])
 
   const configured =
     settings.data?.downloadClientId != null && (settings.data.category ?? '') !== ''
@@ -83,7 +87,8 @@ export function SearchScreen({ query }: { query: string }) {
   const submit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     const q = input.trim()
-    if (q !== '') navigate('search', { q })
+    // The sort order carries over to the next search.
+    if (q !== '') navigate('search', { q, ...(sort === 'relevance' ? {} : { sort }) })
   }
 
   const toggle = (guid: string) => {
@@ -206,9 +211,22 @@ export function SearchScreen({ query }: { query: string }) {
       </div>
 
       {releases.length > 0 && (
-        <Text size="xs" c="dimmed" className="mono">
-          {releases.length} {search.hasNextPage ? 'loaded' : 'results'}
-        </Text>
+        <Group gap="xs" justify="space-between" wrap="nowrap">
+          <Text size="xs" c="dimmed" className="mono">
+            {releases.length} {search.hasNextPage ? 'loaded' : 'results'}
+            {sort !== 'relevance' && search.hasNextPage && ' · sorted'}
+          </Text>
+          <SortMenu
+            value={sort}
+            onChange={(order) => {
+              navigate(
+                'search',
+                { q: query, ...(order === 'relevance' ? {} : { sort: order }) },
+                true,
+              )
+            }}
+          />
+        </Group>
       )}
 
       {settings.isSuccess && !configured && (
@@ -257,7 +275,8 @@ export function SearchScreen({ query }: { query: string }) {
         </EmptyState>
       ) : (
         <ReleaseList
-          releases={releases}
+          releases={sorted}
+          autoLoad={sort === 'relevance'}
           selected={selected}
           grabs={grabs}
           onToggle={toggle}
@@ -322,10 +341,42 @@ function describeIndexers(ids: number[] | undefined, indexers: Indexer[] | undef
   return `${String(names.length)} indexers`
 }
 
+function SortMenu({ value, onChange }: { value: SortOrder; onChange: (order: SortOrder) => void }) {
+  return (
+    <Menu position="bottom-end" shadow="md" radius="md" width={190}>
+      <Menu.Target>
+        <Button
+          variant={value === 'relevance' ? 'subtle' : 'light'}
+          color={value === 'relevance' ? 'gray' : 'signal'}
+          size="compact-sm"
+          leftSection={<IconArrowsSort size={15} stroke={1.8} />}
+        >
+          {SORT_LABELS[value]}
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>Sort results</Menu.Label>
+        {SORT_ORDERS.map((order) => (
+          <Menu.Item
+            key={order}
+            onClick={() => {
+              onChange(order)
+            }}
+            rightSection={order === value ? <IconCheck size={15} /> : null}
+          >
+            {SORT_LABELS[order]}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
+
 const ESTIMATED_ROW = 78
 
 function ReleaseList({
   releases,
+  autoLoad,
   selected,
   grabs,
   onToggle,
@@ -335,6 +386,8 @@ function ReleaseList({
   onLoadMore,
 }: {
   releases: readonly Release[]
+  // Off while sorted: loading more on reaching the end would sort new results in above the reader.
+  autoLoad: boolean
   selected: ReadonlySet<string>
   grabs: ReadonlyMap<string, GrabState>
   onToggle: (guid: string) => void
@@ -361,10 +414,17 @@ function ReleaseList({
 
   // Load the next page as the end comes into view.
   useEffect(() => {
-    if (last && last.index >= releases.length - 5 && hasMore && !loadingMore && error === null) {
+    if (
+      autoLoad &&
+      last &&
+      last.index >= releases.length - 5 &&
+      hasMore &&
+      !loadingMore &&
+      error === null
+    ) {
       onLoadMore()
     }
-  }, [last, releases.length, hasMore, loadingMore, error, onLoadMore])
+  }, [autoLoad, last, releases.length, hasMore, loadingMore, error, onLoadMore])
 
   const now = useNow(60_000)
   return (
@@ -406,6 +466,13 @@ function ReleaseList({
                         Retry
                       </Button>
                     </>
+                  ) : hasMore && !autoLoad ? (
+                    <Stack gap={6} align="center">
+                      <span>Sorted among the {releases.length} results loaded so far</span>
+                      <Button size="compact-sm" variant="light" onClick={onLoadMore}>
+                        Load more and sort them in
+                      </Button>
+                    </Stack>
                   ) : hasMore ? (
                     ''
                   ) : (

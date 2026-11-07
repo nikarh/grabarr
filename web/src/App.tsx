@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useTorrents } from './api/hooks'
 import { Shell } from './components/Shell'
 import { useRoute } from './lib/router'
+import { parseSort } from './lib/sort'
 import { isActive } from './lib/status'
 import { DownloadsScreen } from './screens/Downloads'
 import { SearchScreen } from './screens/Search'
@@ -23,7 +24,12 @@ export function App() {
 
   return (
     <Shell screen={route.screen} activeDownloads={active}>
-      {route.screen === 'search' && <SearchScreen query={route.params.get('q') ?? ''} />}
+      {route.screen === 'search' && (
+        <SearchScreen
+          query={route.params.get('q') ?? ''}
+          sort={parseSort(route.params.get('sort'))}
+        />
+      )}
       {route.screen === 'downloads' && <DownloadsScreen state={torrents} />}
       {route.screen === 'settings' && <SettingsScreen />}
     </Shell>
