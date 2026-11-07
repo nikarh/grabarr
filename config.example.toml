@@ -1,0 +1,40 @@
+# grabarr configuration. Every key but prowlarr.url and the Prowlarr API key is optional; the values shown are the
+# defaults. Secrets can be given inline (`x = "..."`) or as a file whose trimmed contents are the value (`x_file`,
+# e.g. a docker secret), but not both.
+
+[server]
+# Address and port to listen on.
+listen = "0.0.0.0:8080"
+# Browsers may only open the WebSocket from a page of the same origin as the server (compared against the Host and
+# X-Forwarded-Host headers). Origins listed here are allowed too, e.g. a dev server.
+allowed_origins = []
+
+[database]
+# The SQLite database with the settings chosen in the UI. Its directory must be writable.
+path = "/data/grabarr.db"
+
+[log]
+# "text" or "json". RUST_LOG overrides the level.
+format = "text"
+level = "info"
+
+[prowlarr]
+url = "http://prowlarr:9696"
+# Settings > General > Security > API Key in Prowlarr.
+# api_key = "..."
+api_key_file = "/run/secrets/prowlarr_api_key"
+# Searches wait this long for slow indexers.
+timeout_secs = 90
+
+# grabarr finds qBittorrent through the download client chosen in the UI: the address and username come from
+# Prowlarr. Prowlarr doesn't reveal passwords, so the password has to be given here, unless qBittorrent doesn't ask
+# grabarr for one (its "Bypass authentication for clients in whitelisted IP subnets" option): then leave both
+# password keys out, and grabarr never logs in.
+[qbittorrent]
+# Instead of the address Prowlarr has, e.g. when grabarr reaches qBittorrent by another name.
+# url = "http://qbittorrent:8080"
+# username = "admin"
+# password = "..."
+# password_file = "/run/secrets/qbittorrent_password"
+# How often the downloads screen is refreshed while open.
+poll_interval_ms = 2000

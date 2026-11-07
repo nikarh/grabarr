@@ -310,6 +310,20 @@ mod tests {
     }
 
     #[test]
+    fn example_parses() {
+        let example = include_str!("../config.example.toml")
+            .replace(
+                "api_key_file = \"/run/secrets/prowlarr_api_key\"",
+                "api_key = \"k\"",
+            )
+            .replace("# password = \"...\"", "password = \"p\"");
+        let config = parse(&example).unwrap();
+        assert_eq!(config.prowlarr.api_key, "k");
+        assert_eq!(config.qbittorrent.password.as_deref(), Some("p"));
+        assert_eq!(config.qbittorrent.poll_interval, Duration::from_secs(2));
+    }
+
+    #[test]
     fn requires_api_key() {
         assert!(parse("[prowlarr]\nurl = \"http://p\"\n").is_err());
     }
