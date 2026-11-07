@@ -1,16 +1,6 @@
-/*
- * A fixed-height column: header, the scrolling content, the tab bar. The document never scrolls, so mobile browsers
- * keep their toolbars still, and nothing is anchored to a viewport they resize mid-scroll (bars detaching from the
- * bottom edge, or twitching).
- */
-.app {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
 .header {
-  flex: none;
+  position: sticky;
+  top: 0;
   z-index: 50;
   height: var(--header-height);
   backdrop-filter: blur(14px) saturate(140%);
@@ -122,29 +112,23 @@
 }
 
 .main {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.content {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 16px 16px 24px;
+  padding: 16px 16px calc(var(--tabbar-height) + 16px);
 }
 
 /* Room for a floating action bar, only while one shows. */
-.content:has([data-floating-bar='visible']) {
-  padding-bottom: 88px;
+.main:has([data-floating-bar='visible']) {
+  padding-bottom: calc(var(--tabbar-height) + 88px);
 }
 
 .tabbar {
-  flex: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 60;
-  height: calc(var(--tabbar-height) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  height: var(--tabbar-height);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: color-mix(in srgb, light-dark(#ffffff, var(--mantine-color-dark-7)) 88%, transparent);
@@ -209,11 +193,11 @@
     display: none;
   }
 
-  .content {
+  .main {
     padding: 28px 24px 48px;
   }
 
-  .content:has([data-floating-bar='visible']) {
+  .main:has([data-floating-bar='visible']) {
     padding-bottom: 104px;
   }
 }

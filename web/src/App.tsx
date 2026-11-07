@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { useTorrents } from './api/hooks'
 import { Shell } from './components/Shell'
 import { useRoute } from './lib/router'
@@ -15,6 +17,10 @@ export function App() {
     torrents.status === 'loading' || torrents.torrents === null
       ? 0
       : [...torrents.torrents.values()].filter(isActive).length
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [route.screen])
 
   return (
     <Shell screen={route.screen} activeDownloads={active}>

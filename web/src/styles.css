@@ -2,7 +2,6 @@
   --tabbar-height: 64px;
   --header-height: 56px;
   --content-width: 920px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --hairline: light-dark(rgb(15 20 25 / 0.08), rgb(255 255 255 / 0.065));
   --hairline-strong: light-dark(rgb(15 20 25 / 0.14), rgb(255 255 255 / 0.12));
   --surface: light-dark(#ffffff, var(--mantine-color-dark-7));
@@ -22,11 +21,9 @@
   --status-queued: light-dark(#6d4fd6, #a998ff);
 }
 
-/* Only the content area scrolls (see Shell.module.css), with its scrollbar gutter always reserved. */
-html,
-body {
-  height: 100%;
-  overflow: hidden;
+/* Space for the scrollbar is always reserved, so the layout doesn't shift between short and long pages. */
+html {
+  scrollbar-gutter: stable;
 }
 
 :root[data-mantine-color-scheme='light'] {

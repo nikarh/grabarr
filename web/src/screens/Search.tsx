@@ -26,6 +26,7 @@ import {
   IconSearch,
   IconX,
 } from '@tabler/icons-react'
+import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
 
 import type { Indexer, Release, SearchCategory } from '../api/generated/model'
@@ -40,7 +41,6 @@ import { cx } from '../lib/cx'
 import { formatAge, formatBytes } from '../lib/format'
 import { href, navigate } from '../lib/router'
 import { SORT_LABELS, SORT_ORDERS, sortReleases, type SortOrder } from '../lib/sort'
-import { useListVirtualizer } from '../lib/useListVirtualizer'
 import { useNow } from '../lib/useNow'
 import { useTruncated } from '../lib/useTruncated'
 import classes from './Search.module.css'
@@ -409,10 +409,16 @@ function ReleaseList({
       return next
     })
   }, [])
-  const { virtualizer, scrollMargin } = useListVirtualizer({
-    listRef,
+  const [scrollMargin, setScrollMargin] = useState(0)
+  useEffect(() => {
+    setScrollMargin(listRef.current?.offsetTop ?? 0)
+  }, [])
+
+  const virtualizer = useWindowVirtualizer({
     count: releases.length + 1,
-    estimateSize: ESTIMATED_ROW,
+    estimateSize: () => ESTIMATED_ROW,
+    overscan: 10,
+    scrollMargin,
     getItemKey: (i) => releases[i]?.guid ?? 'footer',
   })
   const items = virtualizer.getVirtualItems()
