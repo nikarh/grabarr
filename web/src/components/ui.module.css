@@ -183,3 +183,18 @@
   font-size: 13px;
   color: var(--ink-faint);
 }
+
+.rowTitle[data-expanded='true'] {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.toggleIcon {
+  transition: transform 150ms ease;
+}
+
+.toggleIcon[data-expanded='true'] {
+  transform: rotate(180deg);
+}

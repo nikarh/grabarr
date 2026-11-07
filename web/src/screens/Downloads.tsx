@@ -22,11 +22,12 @@ import {
   IconSearch,
   IconTrash,
 } from '@tabler/icons-react'
-import { memo, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { Torrent } from '../api/generated/model'
 import type { TorrentsState } from '../api/hooks'
 import { rpc } from '../api/rpc'
+import { TitleToggle } from '../components/TitleToggle'
 import { ActionBar, EmptyState, Sheet, StatusLabel } from '../components/ui'
 import ui from '../components/ui.module.css'
 import { cx } from '../lib/cx'
@@ -34,6 +35,7 @@ import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/
 import { href } from '../lib/router'
 import { isActive, isDone, statusColor } from '../lib/status'
 import { useListVirtualizer } from '../lib/useListVirtualizer'
+import { useTruncated } from '../lib/useTruncated'
 import classes from './Downloads.module.css'
 
 type Filter = 'all' | 'active' | 'done'
@@ -306,6 +308,15 @@ function TorrentList({
   onToggle: (hash: string) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
+  // Here rather than in the rows, which unmount when scrolled out of view.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const toggleExpanded = useCallback((hash: string) => {
+    setExpanded((e) => {
+      const next = new Set(e)
+      if (!next.delete(hash)) next.add(hash)
+      return next
+    })
+  }, [])
   const { virtualizer, scrollMargin } = useListVirtualizer({
     listRef,
     count: torrents.length,
@@ -335,7 +346,9 @@ function TorrentList({
               <TorrentRow
                 torrent={torrent}
                 selected={selected.has(torrent.hash)}
+                expanded={expanded.has(torrent.hash)}
                 onToggle={onToggle}
+                onExpand={toggleExpanded}
               />
             </div>
           )
@@ -348,12 +361,18 @@ function TorrentList({
 const TorrentRow = memo(function TorrentRow({
   torrent,
   selected,
+  expanded,
   onToggle,
+  onExpand,
 }: {
   torrent: Torrent
   selected: boolean
+  expanded: boolean
   onToggle: (hash: string) => void
+  onExpand: (hash: string) => void
 }) {
+  const titleRef = useRef<HTMLDivElement>(null)
+  const truncated = useTruncated(titleRef)
   const id = `torrent-${torrent.hash}`
   const downloading = torrent.status === 'downloading' || torrent.status === 'metadata'
   return (
@@ -369,7 +388,9 @@ const TorrentRow = memo(function TorrentRow({
           aria-label={torrent.name}
         />
         <div className={ui.rowBody}>
-          <div className={ui.rowTitle}>{torrent.name}</div>
+          <div className={ui.rowTitle} ref={titleRef} data-expanded={expanded}>
+            {torrent.name}
+          </div>
           <div className={classes.progressLine}>
             <Progress
               value={torrent.progress * 100}
@@ -402,6 +423,17 @@ const TorrentRow = memo(function TorrentRow({
           </div>
         </div>
       </label>
+      {(truncated || expanded) && (
+        <div className={ui.rowAside}>
+          <TitleToggle
+            expanded={expanded}
+            name={torrent.name}
+            onToggle={() => {
+              onExpand(torrent.hash)
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 })
