@@ -26,7 +26,12 @@ createRoot(root).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <QueryClientProvider client={queryClient}>
-        <Notifications position="top-center" limit={3} />
+        <Notifications
+          position="top-center"
+          limit={3}
+          containerWidth={440}
+          classNames={{ root: 'app-notifications' }}
+        />
         <App />
       </QueryClientProvider>
     </MantineProvider>
