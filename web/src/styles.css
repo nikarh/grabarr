@@ -4,6 +4,7 @@
   --content-width: 920px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --hairline: light-dark(rgb(15 20 25 / 0.08), rgb(255 255 255 / 0.065));
+  --hairline-strong: light-dark(rgb(15 20 25 / 0.14), rgb(255 255 255 / 0.12));
   --surface: light-dark(#ffffff, var(--mantine-color-dark-7));
   --surface-raised: light-dark(#ffffff, var(--mantine-color-dark-6));
   --ink-dim: light-dark(#5b626c, var(--mantine-color-dark-2));

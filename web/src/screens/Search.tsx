@@ -149,7 +149,7 @@ export function SearchScreen({ query }: { query: string }) {
           rightSection={
             input !== '' && (
               <ActionIcon
-                aria-label="Clear"
+                aria-label="Clear search"
                 onClick={() => {
                   setInput('')
                 }}
@@ -245,28 +245,26 @@ export function SearchScreen({ query }: { query: string }) {
         />
       )}
 
-      {selected.size > 0 && (
-        <ActionBar label={`${String(selected.size)} selected`}>
-          <Button
-            variant="subtle"
-            color="gray"
-            onClick={() => {
-              setSelected(new Set())
-            }}
-          >
-            Clear
-          </Button>
-          <Button
-            onClick={() => {
-              void grab()
-            }}
-            disabled={!configured}
-            loading={[...selected].some((g) => grabs.get(g)?.status === 'pending')}
-          >
-            Grab
-          </Button>
-        </ActionBar>
-      )}
+      <ActionBar label={`${String(selected.size)} selected`} visible={selected.size > 0}>
+        <Button
+          variant="subtle"
+          color="gray"
+          onClick={() => {
+            setSelected(new Set())
+          }}
+        >
+          Clear
+        </Button>
+        <Button
+          onClick={() => {
+            void grab()
+          }}
+          disabled={!configured}
+          loading={[...selected].some((g) => grabs.get(g)?.status === 'pending')}
+        >
+          Grab
+        </Button>
+      </ActionBar>
 
       <IndexerPicker
         opened={pickerOpen}

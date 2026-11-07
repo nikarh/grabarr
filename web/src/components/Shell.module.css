@@ -114,7 +114,12 @@
 .main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 16px 16px calc(var(--tabbar-height) + var(--safe-bottom) + 96px);
+  padding: 16px 16px calc(var(--tabbar-height) + var(--safe-bottom) + 16px);
+}
+
+/* Room for a floating action bar, only while one shows. */
+.main:has([data-floating-bar='visible']) {
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 88px);
 }
 
 .tabbar {
@@ -190,6 +195,10 @@
   }
 
   .main {
-    padding: 28px 24px 120px;
+    padding: 28px 24px 48px;
+  }
+
+  .main:has([data-floating-bar='visible']) {
+    padding-bottom: 104px;
   }
 }

@@ -209,28 +209,26 @@ export function DownloadsScreen({ state }: { state: TorrentsState }) {
         shown.length > 0 && <TorrentList torrents={shown} selected={selected} onToggle={toggle} />
       )}
 
-      {selected.size > 0 && (
-        <ActionBar label={`${String(selected.size)} selected`}>
-          <Button
-            variant="subtle"
-            color="gray"
-            onClick={() => {
-              setSelected(new Set())
-            }}
-          >
-            Clear
-          </Button>
-          <Button
-            color="red"
-            leftSection={<IconTrash size={16} />}
-            onClick={() => {
-              setConfirming(true)
-            }}
-          >
-            Delete
-          </Button>
-        </ActionBar>
-      )}
+      <ActionBar label={`${String(selected.size)} selected`} visible={selected.size > 0}>
+        <Button
+          variant="subtle"
+          color="gray"
+          onClick={() => {
+            setSelected(new Set())
+          }}
+        >
+          Clear
+        </Button>
+        <Button
+          color="red"
+          leftSection={<IconTrash size={16} />}
+          onClick={() => {
+            setConfirming(true)
+          }}
+        >
+          Delete
+        </Button>
+      </ActionBar>
 
       <Sheet
         opened={confirming}

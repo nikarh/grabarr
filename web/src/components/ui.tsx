@@ -6,10 +6,28 @@ import type { TorrentStatus } from '../api/generated/model'
 import { STATUS } from '../lib/status'
 import classes from './ui.module.css'
 
-/** A bar floating above the content with actions on the current selection. */
-export function ActionBar({ label, children }: { label: ReactNode; children: ReactNode }) {
+/**
+ * A bar floating above the content, with actions on a selection or on unsaved changes. While it shows, the page
+ * gets room at the bottom so it never covers the last row.
+ */
+export function ActionBar({
+  label,
+  visible,
+  children,
+}: {
+  label: ReactNode
+  visible: boolean
+  children: ReactNode
+}) {
   return (
-    <div className={classes.actionBar} role="toolbar" aria-label="Selection">
+    <div
+      className={classes.actionBar}
+      role="toolbar"
+      aria-label="Actions"
+      aria-hidden={!visible}
+      inert={!visible}
+      data-floating-bar={visible ? 'visible' : 'hidden'}
+    >
       <div className={classes.actionBarCount}>{label}</div>
       {children}
     </div>

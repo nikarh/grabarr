@@ -21,6 +21,7 @@ import {
   useSaveSettings,
   useSettings,
 } from '../api/hooks'
+import { ActionBar } from '../components/ui'
 import classes from './Settings.module.css'
 
 export function SettingsScreen() {
@@ -178,10 +179,7 @@ function SettingsForm({ saved }: { saved: Settings }) {
         )}
       </Section>
 
-      <div className={classes.saveBar} data-visible={dirty}>
-        <Text size="sm" fw={550} className={classes.saveText}>
-          Unsaved changes
-        </Text>
+      <ActionBar label="Unsaved changes" visible={dirty}>
         <Button
           variant="subtle"
           color="gray"
@@ -194,7 +192,7 @@ function SettingsForm({ saved }: { saved: Settings }) {
         <Button onClick={submit} loading={save.isPending}>
           Save
         </Button>
-      </div>
+      </ActionBar>
     </Stack>
   )
 }
