@@ -27,7 +27,16 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SubmitEvent,
+} from 'react'
 
 import type { Indexer, Release, SearchCategory } from '../api/generated/model'
 import { useIndexers, useSearch, useSearchCategories, useSettings } from '../api/hooks'
@@ -422,6 +431,14 @@ function ReleaseList({
     scrollMargin,
     getItemKey: (i) => releases[i]?.guid ?? 'footer',
   })
+  // A row that grows or shrinks moves the rows below it in the same frame; the virtualizer's own measuring (a
+  // ResizeObserver) would leave them a frame behind, drawn over by the grown row. (Its measureElement() returns the
+  // cached size outside of the observer, hence resizeItem().)
+  useLayoutEffect(() => {
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>('[data-index]') ?? []) {
+      virtualizer.resizeItem(Number(row.dataset.index), row.offsetHeight)
+    }
+  }, [expanded, virtualizer])
   const items = virtualizer.getVirtualItems()
   const last = items.at(-1)
 

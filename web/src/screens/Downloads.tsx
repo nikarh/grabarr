@@ -23,7 +23,16 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { Torrent } from '../api/generated/model'
 import type { TorrentsState } from '../api/hooks'
@@ -330,6 +339,14 @@ function TorrentList({
     scrollMargin,
     getItemKey: (i) => torrents[i]?.hash ?? i,
   })
+  // A row that grows or shrinks moves the rows below it in the same frame; the virtualizer's own measuring (a
+  // ResizeObserver) would leave them a frame behind, drawn over by the grown row. (Its measureElement() returns the
+  // cached size outside of the observer, hence resizeItem().)
+  useLayoutEffect(() => {
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>('[data-index]') ?? []) {
+      virtualizer.resizeItem(Number(row.dataset.index), row.offsetHeight)
+    }
+  }, [expanded, virtualizer])
 
   return (
     <div ref={listRef} className={ui.list}>
