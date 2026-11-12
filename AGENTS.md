@@ -25,3 +25,6 @@ conditions, and what changed. Never frame them around a particular deployment, a
   directory, no listening on ports below 1024, nothing needing a shell or files from a distribution.
 - `web/package.json` `overrides` force fixed versions of vulnerable transitive dev dependencies whose dependents
   haven't caught up yet. Drop an override once the dependent requires a fixed version itself.
+- The `[patch.crates-io]` of the sqlx crates in `Cargo.toml` (and its `allow-git` in `deny.toml`) pins an upstream
+  commit that allows a `libsqlite3-sys` with a fixed bundled SQLite. Drop both once a sqlx release allows it, along with
+  the digest 0.10 `skip`s in `deny.toml` if that release no longer needs them.
