@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # The frontend is the same for every architecture: build it once, natively.
-FROM --platform=$BUILDPLATFORM node:26.13.0-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26.13.1-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
